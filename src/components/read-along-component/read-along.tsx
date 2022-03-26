@@ -229,6 +229,55 @@ export class ReadAlongComponent {
   }
 
   /**
+   *  Highlight specific wording given by time.
+   *
+   * @param s
+   */
+  goToTime(time: number): void {
+    let query_el = this.returnWordClosestTo(time);
+    if (!query_el) return;
+
+    let tag = query_el.id;
+    let seek = this.processed_alignment[tag][0];
+    this.addHighlightingTo(query_el);
+    this.goTo(seek);
+
+    // Scroll horizontally (to different page) if needed
+    let current_page = ReadAlongComponent._getSentenceContainerOfWord(query_el).parentElement.id
+    if (current_page !== this.current_page) {
+      if (this.current_page !== undefined) {
+        this.scrollToPage(current_page)
+      }
+      this.current_page = current_page
+    }
+
+    // scroll vertically (through paragraph) if needed
+    if (this.inPageContentOverflow(query_el)) {
+      if (this.autoScroll) {
+        query_el.scrollIntoView(false);
+        this.scrollByHeight(query_el)
+      }
+    }
+    // scroll horizontal (through paragraph) if needed
+    if (this.inParagraphContentOverflow(query_el)) {
+      if (this.autoScroll) {
+        query_el.scrollIntoView(false);
+        this.scrollByWidth(query_el)
+      }
+    }
+  }
+
+  /**
+   * Get the Time for given element.
+   *
+   * @param ev
+   */
+  getTime(tag: number): number {
+    let seek = this.processed_alignment[tag][0]
+    return seek / 1000;
+  }
+
+  /**
    * Go to seek
    *
    * @param seek number
@@ -784,6 +833,8 @@ export class ReadAlongComponent {
 
     this.assetsStatus.XML = this.parsed_text.length ? LOADED : ERROR_LOADING
 
+    // Assign to Global Object for external access
+    globalThis.readAlong = this;
 
   }
 
