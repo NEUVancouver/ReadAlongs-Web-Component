@@ -5,6 +5,7 @@ const webpack = require('webpack');
 
 module.exports = {
     entry: './dist/esm/read-along.js',
+	mode: 'development',
     output: {
         filename: 'bundle.js',
         path: path.resolve('./dist'),

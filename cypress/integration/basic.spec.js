@@ -1,4 +1,4 @@
-context("The Readalong Component", () => {
+context("The Readalong Component (test xml and m4a file)", () => {
   /**
    * Wait for the audio and the SMIL to load.
    */
@@ -10,12 +10,27 @@ context("The Readalong Component", () => {
   beforeEach(() => {
     cy.visit("/ej-fra/");
   });
-
+  //new test
   it("should load successfully", () => {
     cy.readalongElement().should("be.visible");
+  });
 
+  it("should get the time of selected word", function () {
+    cy.window()
+      .its("readAlong")
+      .then((readAlong) => {
+        expect(readAlong.getTime("t0b0d1p0s1w4")).to.equal(15.36);
+      });
+  });
+  it("should highlight the word at the given time", function () {
+    cy.wait(EXPECTED_LOADING_TIME);
+    cy.window()
+      .its("readAlong")
+      .then((readAlong) => {
+        readAlong.goToTime(3);
+      });
     cy.readalong().within(() => {
-      cy.contains("Page");
+      cy.get("[id='t0b0d0p0s2w2']").should("have.class", "reading");
     });
   });
 
@@ -61,5 +76,57 @@ context("The Readalong Component", () => {
           .should("eq", "2");
       });
     });
+  });
+});
+context("The Readalong Component (test xml and mp3 file)", () => {
+  /**
+   * Wait for the audio and the SMIL to load.
+   */
+  const EXPECTED_LOADING_TIME = 2000; // ms
+
+  const FOR_PAGE_TURN_ANIMATION = 500; // ms
+  const FOR_ERIC_TO_TALK_A_BIT = 3000; // ms
+
+  beforeEach(() => {
+    cy.visit("/udhr-gla/");
+  });
+  //new test
+  it("should load successfully", () => {
+    cy.readalongElement().should("be.visible");
+  });
+
+  it("should get the time of selected word", function () {
+    cy.window()
+      .its("readAlong")
+      .then((readAlong) => {
+        expect(readAlong.getTime("t0b0d0p0s0w6")).to.equal(1.77);
+      });
+  });
+  it("should highlight the word at the given time", function () {
+    cy.wait(EXPECTED_LOADING_TIME);
+    cy.window()
+      .its("readAlong")
+      .then((readAlong) => {
+        readAlong.goToTime(3);
+      });
+    cy.readalong().within(() => {
+      cy.get("[id='t0b0d0p0s0w9']").should("have.class", "reading");
+    });
+  });
+
+  it("should play the entire ReadAlong", () => {
+    cy.wait(EXPECTED_LOADING_TIME);
+
+    cy.readalong().within(() => {
+      cy.get("[data-cy=play-button]").click();
+      cy.wait(FOR_ERIC_TO_TALK_A_BIT);
+      cy.get("[data-cy=stop-button]").click();
+    });
+  });
+
+  it("should play a single word when clicked", () => {
+    cy.wait(EXPECTED_LOADING_TIME);
+
+    cy.readalong().contains("reusanta").click();
   });
 });
