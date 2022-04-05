@@ -110,7 +110,7 @@ context("Readalong Component with missing assets", () => {
       cy.get("[data-cy=control-panel]")
         .should("have.length", 1)
         .should("be.visible"); //
-
+      //check whether only word in valid xml tag has been loaded
       cy.get("[class='sentence__word theme--light']").should("have.length", 3);
       cy.get("[data-cy=alignment-error]")
         .should("have.class", "fade")
