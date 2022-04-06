@@ -1,0 +1,224 @@
+<smil xmlns="http://www.w3.org/ns/SMIL" version="3.0">
+    <body>
+        <par id="par-t0b0d0p0s0w0">
+            <text src="dan.xml#t0b0d0p0s0w0"/>
+            <audio src="dan.wav" clipBegin="0.575" clipEnd="1.805"/>
+        </par>
+        <par id="par-t0b0d0p0s1w0">
+            <text src="dan.xml#t0b0d0p0s1w0"/>
+            <audio src="dan.wav" clipBegin="1.805" clipEnd="3.26"/>
+        </par>
+        <par id="par-t0b0d0p0s1w1">
+            <text src="dan.xml#t0b0d0p0s1w1"/>
+            <audio src="dan.wav" clipBegin="3.26" clipEnd="4.73"/>
+        </par>
+        <par id="par-t0b0d0p0s1w2">
+            <text src="dan.xml#t0b0d0p0s1w2"/>
+            <audio src="dan.wav" clipBegin="4.73" clipEnd="5.38"/>
+        </par>
+        <par id="par-t0b0d0p0s1w3">
+            <text src="dan.xml#t0b0d0p0s1w3"/>
+            <audio src="dan.wav" clipBegin="5.38" clipEnd="5.44"/>
+        </par>
+        <par id="par-t0b0d0p0s1w4">
+            <text src="dan.xml#t0b0d0p0s1w4"/>
+            <audio src="dan.wav" clipBegin="5.44" clipEnd="5.99"/>
+        </par>
+        <par id="par-t0b0d0p0s1w5">
+            <text src="dan.xml#t0b0d0p0s1w5"/>
+            <audio src="dan.wav" clipBegin="5.99" clipEnd="7.095"/>
+        </par>
+        <par id="par-t0b0d0p0s1w6">
+            <text src="dan.xml#t0b0d0p0s1w6"/>
+            <audio src="dan.wav" clipBegin="7.095" clipEnd="8.16"/>
+        </par>
+        <par id="par-t0b0d0p0s1w7">
+            <text src="dan.xml#t0b0d0p0s1w7"/>
+            <audio src="dan.wav" clipBegin="8.16" clipEnd="8.35"/>
+        </par>
+        <par id="par-t0b0d0p0s1w8">
+            <text src="dan.xml#t0b0d0p0s1w8"/>
+            <audio src="dan.wav" clipBegin="8.35" clipEnd="8.41"/>
+        </par>
+        <par id="par-t0b0d0p0s1w9">
+            <text src="dan.xml#t0b0d0p0s1w9"/>
+            <audio src="dan.wav" clipBegin="8.41" clipEnd="8.89"/>
+        </par>
+        <par id="par-t0b0d0p0s1w10">
+            <text src="dan.xml#t0b0d0p0s1w10"/>
+            <audio src="dan.wav" clipBegin="8.89" clipEnd="10.59"/>
+        </par>
+        <par id="par-t0b0d0p0s1w11">
+            <text src="dan.xml#t0b0d0p0s1w11"/>
+            <audio src="dan.wav" clipBegin="10.59" clipEnd="11.46"/>
+        </par>
+        <par id="par-t0b0d0p0s1w12">
+            <text src="dan.xml#t0b0d0p0s1w12"/>
+            <audio src="dan.wav" clipBegin="11.46" clipEnd="11.66"/>
+        </par>
+        <par id="par-t0b0d0p0s1w13">
+            <text src="dan.xml#t0b0d0p0s1w13"/>
+            <audio src="dan.wav" clipBegin="11.66" clipEnd="12.04"/>
+        </par>
+        <par id="par-t0b0d0p0s1w14">
+            <text src="dan.xml#t0b0d0p0s1w14"/>
+            <audio src="dan.wav" clipBegin="12.04" clipEnd="12.17"/>
+        </par>
+        <par id="par-t0b0d0p0s1w15">
+            <text src="dan.xml#t0b0d0p0s1w15"/>
+            <audio src="dan.wav" clipBegin="12.17" clipEnd="12.93"/>
+        </par>
+        <par id="par-t0b0d0p0s2w0">
+            <text src="dan.xml#t0b0d0p0s2w0"/>
+            <audio src="dan.wav" clipBegin="12.93" clipEnd="13.02"/>
+        </par>
+        <par id="par-t0b0d0p0s2w1">
+            <text src="dan.xml#t0b0d0p0s2w1"/>
+            <audio src="dan.wav" clipBegin="13.02" clipEnd="13.7"/>
+        </par>
+        <par id="par-t0b0d0p0s2w2">
+            <text src="dan.xml#t0b0d0p0s2w2"/>
+            <audio src="dan.wav" clipBegin="13.7" clipEnd="14.15"/>
+        </par>
+        <par id="par-t0b0d0p0s2w3">
+            <text src="dan.xml#t0b0d0p0s2w3"/>
+            <audio src="dan.wav" clipBegin="14.15" clipEnd="14.575"/>
+        </par>
+        <par id="par-t0b0d0p0s2w4">
+            <text src="dan.xml#t0b0d0p0s2w4"/>
+            <audio src="dan.wav" clipBegin="14.575" clipEnd="14.73"/>
+        </par>
+        <par id="par-t0b0d0p0s2w5">
+            <text src="dan.xml#t0b0d0p0s2w5"/>
+            <audio src="dan.wav" clipBegin="14.73" clipEnd="14.82"/>
+        </par>
+        <par id="par-t0b0d0p0s2w6">
+            <text src="dan.xml#t0b0d0p0s2w6"/>
+            <audio src="dan.wav" clipBegin="14.82" clipEnd="15.43"/>
+        </par>
+        <par id="par-t0b0d0p0s2w7">
+            <text src="dan.xml#t0b0d0p0s2w7"/>
+            <audio src="dan.wav" clipBegin="15.43" clipEnd="15.58"/>
+        </par>
+        <par id="par-t0b0d0p0s2w8">
+            <text src="dan.xml#t0b0d0p0s2w8"/>
+            <audio src="dan.wav" clipBegin="15.58" clipEnd="15.61"/>
+        </par>
+        <par id="par-t0b0d0p0s2w9">
+            <text src="dan.xml#t0b0d0p0s2w9"/>
+            <audio src="dan.wav" clipBegin="15.61" clipEnd="16.51"/>
+        </par>
+        <par id="par-t0b0d0p0s2w10">
+            <text src="dan.xml#t0b0d0p0s2w10"/>
+            <audio src="dan.wav" clipBegin="16.51" clipEnd="17.65"/>
+        </par>
+        <par id="par-t0b0d0p0s2w11">
+            <text src="dan.xml#t0b0d0p0s2w11"/>
+            <audio src="dan.wav" clipBegin="17.65" clipEnd="18.28"/>
+        </par>
+        <par id="par-t0b0d0p0s2w12">
+            <text src="dan.xml#t0b0d0p0s2w12"/>
+            <audio src="dan.wav" clipBegin="18.28" clipEnd="19.8"/>
+        </par>
+        <par id="par-t0b0d0p0s2w13">
+            <text src="dan.xml#t0b0d0p0s2w13"/>
+            <audio src="dan.wav" clipBegin="19.8" clipEnd="20.115"/>
+        </par>
+        <par id="par-t0b0d0p0s2w14">
+            <text src="dan.xml#t0b0d0p0s2w14"/>
+            <audio src="dan.wav" clipBegin="20.115" clipEnd="20.52"/>
+        </par>
+        <par id="par-t0b0d0p0s2w15">
+            <text src="dan.xml#t0b0d0p0s2w15"/>
+            <audio src="dan.wav" clipBegin="20.52" clipEnd="21.5"/>
+        </par>
+        <par id="par-t0b0d0p0s2w16">
+            <text src="dan.xml#t0b0d0p0s2w16"/>
+            <audio src="dan.wav" clipBegin="21.5" clipEnd="22.13"/>
+        </par>
+        <par id="par-t0b0d0p0s2w17">
+            <text src="dan.xml#t0b0d0p0s2w17"/>
+            <audio src="dan.wav" clipBegin="22.13" clipEnd="22.525"/>
+        </par>
+        <par id="par-t0b0d0p0s2w18">
+            <text src="dan.xml#t0b0d0p0s2w18"/>
+            <audio src="dan.wav" clipBegin="22.525" clipEnd="23.175"/>
+        </par>
+        <par id="par-t0b0d0p0s2w19">
+            <text src="dan.xml#t0b0d0p0s2w19"/>
+            <audio src="dan.wav" clipBegin="23.175" clipEnd="23.63"/>
+        </par>
+        <par id="par-t0b0d0p0s2w20">
+            <text src="dan.xml#t0b0d0p0s2w20"/>
+            <audio src="dan.wav" clipBegin="23.63" clipEnd="25.09"/>
+        </par>
+        <par id="par-t0b0d0p0s2w21">
+            <text src="dan.xml#t0b0d0p0s2w21"/>
+            <audio src="dan.wav" clipBegin="25.09" clipEnd="26.38"/>
+        </par>
+        <par id="par-t0b0d0p0s2w22">
+            <text src="dan.xml#t0b0d0p0s2w22"/>
+            <audio src="dan.wav" clipBegin="26.38" clipEnd="27.23"/>
+        </par>
+        <par id="par-t0b0d0p0s2w23">
+            <text src="dan.xml#t0b0d0p0s2w23"/>
+            <audio src="dan.wav" clipBegin="27.23" clipEnd="28.175"/>
+        </par>
+        <par id="par-t0b0d0p0s2w24">
+            <text src="dan.xml#t0b0d0p0s2w24"/>
+            <audio src="dan.wav" clipBegin="28.175" clipEnd="28.4"/>
+        </par>
+        <par id="par-t0b0d0p0s2w25">
+            <text src="dan.xml#t0b0d0p0s2w25"/>
+            <audio src="dan.wav" clipBegin="28.4" clipEnd="28.58"/>
+        </par>
+        <par id="par-t0b0d0p0s2w26">
+            <text src="dan.xml#t0b0d0p0s2w26"/>
+            <audio src="dan.wav" clipBegin="28.58" clipEnd="28.94"/>
+        </par>
+        <par id="par-t0b0d0p0s2w27">
+            <text src="dan.xml#t0b0d0p0s2w27"/>
+            <audio src="dan.wav" clipBegin="28.94" clipEnd="29.89"/>
+        </par>
+        <par id="par-t0b0d0p0s2w28">
+            <text src="dan.xml#t0b0d0p0s2w28"/>
+            <audio src="dan.wav" clipBegin="29.89" clipEnd="30.12"/>
+        </par>
+        <par id="par-t0b0d0p0s2w29">
+            <text src="dan.xml#t0b0d0p0s2w29"/>
+            <audio src="dan.wav" clipBegin="30.12" clipEnd="30.35"/>
+        </par>
+        <par id="par-t0b0d0p0s2w30">
+            <text src="dan.xml#t0b0d0p0s2w30"/>
+            <audio src="dan.wav" clipBegin="30.35" clipEnd="30.89"/>
+        </par>
+        <par id="par-t0b0d0p0s2w31">
+            <text src="dan.xml#t0b0d0p0s2w31"/>
+            <audio src="dan.wav" clipBegin="30.89" clipEnd="31.49"/>
+        </par>
+        <par id="par-t0b0d0p0s2w32">
+            <text src="dan.xml#t0b0d0p0s2w32"/>
+            <audio src="dan.wav" clipBegin="31.49" clipEnd="31.64"/>
+        </par>
+        <par id="par-t0b0d0p0s2w33">
+            <text src="dan.xml#t0b0d0p0s2w33"/>
+            <audio src="dan.wav" clipBegin="31.64" clipEnd="32.17"/>
+        </par>
+        <par id="par-t0b0d0p0s2w34">
+            <text src="dan.xml#t0b0d0p0s2w34"/>
+            <audio src="dan.wav" clipBegin="32.17" clipEnd="33.04"/>
+        </par>
+        <par id="par-t0b0d0p0s2w35">
+            <text src="dan.xml#t0b0d0p0s2w35"/>
+            <audio src="dan.wav" clipBegin="33.04" clipEnd="33.45"/>
+        </par>
+        <par id="par-t0b0d0p0s2w36">
+            <text src="dan.xml#t0b0d0p0s2w36"/>
+            <audio src="dan.wav" clipBegin="33.45" clipEnd="34.88"/>
+        </par>
+        <par id="par-t0b0d0p0s3w0">
+            <text src="dan.xml#t0b0d0p0s3w0"/>
+            <audio src="dan.wav" clipBegin="34.88" clipEnd="35.68"/>
+        </par>
+    </body>
+</smil>
