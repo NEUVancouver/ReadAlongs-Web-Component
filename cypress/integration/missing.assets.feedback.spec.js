@@ -4,6 +4,8 @@ context("Readalong Component with missing assets", () => {
    */
   const EXPECTED_LOADING_TIME = 3000; // ms
 
+  const FOR_AIDAN_TO_TALK_A_BIT = 6000; // ms
+
   it("missing text warning show show successfully", () => {
     cy.visit("/ej-fra/index-missing-xml.html");
     cy.wait(EXPECTED_LOADING_TIME);
@@ -96,6 +98,7 @@ context("Readalong Component with missing assets", () => {
       cy.get("[data-cy=progress-bar]").should("have.length", 0);
     });
   });
+
   it("only few words should be shown (test invalid xml file)", () => {
     cy.visit("/udhr-gla/index-invalid-xml.html");
     cy.wait(EXPECTED_LOADING_TIME);
@@ -118,6 +121,37 @@ context("Readalong Component with missing assets", () => {
       cy.get("[data-cy=progress-bar]")
         .should("have.length", 1)
         .should("be.visible");
+    });
+  });
+
+  it("should omit aligning one sentence tag (test xml file with other tag)", () => {
+    cy.visit("/ap_dan/index-other-tag.html");
+    cy.wait(EXPECTED_LOADING_TIME);
+    cy.readalongElement().should("be.visible");
+    cy.readalong().within(() => {
+      cy.get("[data-cy=text-container]").should(($el) => {
+        expect($el.children().length).equal(1, "has text");
+      });
+      cy.get("[data-cy=audio-error]")
+        .should("have.class", "fade")
+        .should("not.be.visible");
+      cy.get("[data-cy=control-panel]")
+        .should("have.length", 1)
+        .should("be.visible");
+
+      cy.get("[id = 'Ptext0']").contains("Jeg hedder Aidan, og jeg laver forskning og udvikling for sprogene af urbefolkeningerne fra landet vi nu hedder Canada.");
+
+      cy.get("[data-cy=alignment-error]")
+        .should("have.class", "fade")
+        .should("not.be.visible");
+      cy.get("[data-cy=progress-bar]")
+        .should("have.length", 1)
+        .should("be.visible");
+    });
+    cy.readalong().within(() => {
+      cy.get("[data-cy=play-button]").click();
+      cy.wait(FOR_AIDAN_TO_TALK_A_BIT);
+      cy.get("[data-cy=stop-button]").click();
     });
   });
 });
