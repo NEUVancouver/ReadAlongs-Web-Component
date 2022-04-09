@@ -827,22 +827,7 @@ export class ReadAlongComponent {
   /**
    * Waveform Control Panel
    */
-  // playPause() : void {
-  //   this.wavesurfer.playPause();
-  // }
 
-  // playRegion() : void {
-  //   let region = Object.values(this.wavesurfer.regions.list)[0] as any;
-  //   if (region) {
-  //       if (this.wavesurfer.isPlaying()){
-  //         this.wavesurfer.playPause();
-  //       }
-  //       else{
-  //         // This only work in Readalongs Studio as spencil web server is missing a particular header
-  //         region.play();
-  //     }
-  //   }
-  // }
 
 
   previewAnchor() : void {
@@ -1036,28 +1021,13 @@ export class ReadAlongComponent {
       responsive: true,
       plugins: [
         RegionsPlugin.create({
-          regions: [
-            // {
-            //   start: 0,
-            //   end: 0,
-            //   loop: false,
-            // }
-          ],
+          regions: [],
           dragSelection: {
             slop: 5,
           },
         }),
         MarkersPlugin.create({
-          markers: [
-            // {
-            //   id: "pointer",
-            //   time: 0,
-            //   label: "",
-            //   position: "top",
-            //   color: "#ffaa11",
-            //   draggable: true,
-            // },
-          ],
+          markers: [],
         }),
       ],
     });
@@ -1071,18 +1041,7 @@ export class ReadAlongComponent {
       }
     });
 
-    // this.wavesurfer.on("marker-drop", function (marker) {
-    //   if (marker.position === "top") {
-    //     _self.goToTime(marker.time);
-    //   }
-    // });
-
     this.wavesurfer.setDisabledEventEmissions("region-click");
-    this.wavesurfer.on("region-click", function (region) {
-      alert("Never come here anymore" + region)
-      console.log("Region Click")
-    });
-
 
     this.wavesurfer.on('seek', function(progress) {
       let time = progress * _self.wavesurfer.getDuration();
@@ -1095,10 +1054,6 @@ export class ReadAlongComponent {
         _self.goToTime(time);
       }
     });
-
-    // this.wavesurfer.on("waveform-ready", function () {
-      // _self.waveform.classList.add("anchorHide");
-    // });
 
   }
 
@@ -1351,11 +1306,6 @@ export class ReadAlongComponent {
     <span class="tooltiptext">Stop</span>
   </button>
 
-  // EditControl = (): Element => this.editable ? <input type="checkbox" data-cy="edit-button" aria-label="Edit"  data-check-switch="" role="switch" 
-  //                                      onChange={() => this.toggleAnchor()}
-  //                                      class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}
-  //                                      /> : <div/>
-
 
   PlaybackSpeedControl = (): Element => <div>
     <h5
@@ -1393,9 +1343,6 @@ export class ReadAlongComponent {
       <this.PlayControl/>
       <this.ReplayControl/>
       <this.StopControl/>
-      {/* <this.EditControl/> */}
-      {/* <this.PlayWaveControl/> */}
-      {/* <this.PlayRegionControl/> */}
       <this.PreviewControl/>
       <this.ExportPreviewControl/>
       <this.ExportOriginalControl/>

@@ -11,7 +11,9 @@
 | ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------- | -------------- |
 | `alignment`       | `alignment`         | The alignment as SMIL                                                                                  | `string`                     | `undefined`    |
 | `audio`           | `audio`             | The audio file                                                                                         | `string`                     | `undefined`    |
+| `base`            | `base`              | Base folder for assets                                                                                 | `string`                     | `undefined`    |
 | `cssUrl`          | `css-url`           | Optional custom Stylesheet to override defaults                                                        | `string`                     | `undefined`    |
+| `editable`        | `editable`          | Toggle Anchor dropping mode                                                                            | `boolean`                    | `false`        |
 | `language`        | `language`          | Language  of the interface. In 639-3 code Options are - "eng" for English - "fra" for French           | `"eng" \| "fra"`             | `'eng'`        |
 | `pageScrolling`   | `page-scrolling`    | Toggles the page scrolling from horizontal to vertical. Defaults to horizontal                         | `"horizontal" \| "vertical"` | `"horizontal"` |
 | `svgOverlay`      | `svg-overlay`       | Overlay This is an SVG overlay to place over the progress bar                                          | `string`                     | `undefined`    |
