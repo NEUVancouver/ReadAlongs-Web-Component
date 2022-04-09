@@ -1062,7 +1062,7 @@ export class ReadAlongComponent {
       }
     });
 
-    this.wavesurfer.on('marker-drop', function(marker) {
+    this.wavesurfer.on('marker-drop', function() {
       if (_self.isValidAnchorSetup()){
         let xmlString = generatePreviewXML(_self.text, _self.anchors);
         window["updateAnchor"].call(this, xmlString);
