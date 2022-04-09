@@ -104,10 +104,6 @@ $value in $ui-themes {
 
 }
 
-.anchorHide {
-    display: none;
-}
-
 .bg-img {
     /* The image used */
     background-image: url("../assets/img/bg.jpg");
@@ -194,3 +190,43 @@ $space: 0;
 
     $space: $space+5;
 }
+
+/* Tooltip container */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    // border-bottom: 1px dotted black; /* If you want dots under the hoverable text */
+  }
+  /* Tooltip text */
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    width: 100px;
+    background-color: #036;
+    color: #fff;
+    text-align: left;
+    padding: 5px;
+    border-radius: 6px;
+    overflow-x: hidden;
+
+    opacity: 20%;
+    transition: opacity 0.6s;
+   
+    /* Position the tooltip text - see examples below! */
+    position: absolute;
+    z-index: 1;
+
+    top: 20px;
+    left: -50%;
+  }
+
+  .tooltip .tooltiptext.right{
+    left: -400%;
+  }
+
+  
+  /* Show the tooltip text when you mouse over the tooltip container */
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+

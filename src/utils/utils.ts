@@ -313,7 +313,6 @@ Sprite.prototype = {
   xmlString = xmlString.replace(/<w id="[a-z|0-9]*">/g, "")
   xmlString = xmlString.replace(/<\/w>/g, "")
 
-  console.log(xmlString);
   return xmlString
 }
 

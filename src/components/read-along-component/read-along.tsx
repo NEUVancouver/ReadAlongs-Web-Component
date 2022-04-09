@@ -116,8 +116,8 @@ export class ReadAlongComponent {
 
   @State() autoScroll: boolean = true;
   @State() isLoaded: boolean = false;
+  @State() isPreviewed : boolean = false;
 
-  @State() isAnchorMode: boolean = false;
   showGuide: boolean = false;
 
   parsed_text;
@@ -399,14 +399,6 @@ export class ReadAlongComponent {
       this.showGuide = false;
     }
 
-  }
-
-  /**
-   * Toggle Anchor Mode
-   */
-  toggleAnchor(): void {
-    this.isAnchorMode = !this.isAnchorMode;
-    this.waveform.classList.toggle('anchorHide')
   }
 
   /**
@@ -744,7 +736,7 @@ export class ReadAlongComponent {
    * Handle Word Click
    */
   handleWord(ev: MouseEvent): void {
-    if (!this.isAnchorMode){
+    if (!this.editable){
       this.playSprite(ev);
     }
     else {
@@ -835,43 +827,55 @@ export class ReadAlongComponent {
   /**
    * Waveform Control Panel
    */
-  playPause() : void {
-    this.wavesurfer.playPause();
-  }
+  // playPause() : void {
+  //   this.wavesurfer.playPause();
+  // }
 
-  playRegion() : void {
-    let region = Object.values(this.wavesurfer.regions.list)[0] as any;
-    if (region) {
-        if (this.wavesurfer.isPlaying()){
-          this.wavesurfer.playPause();
-        }
-        else{
-          region.play();
-      }
-    }
-  }
+  // playRegion() : void {
+  //   let region = Object.values(this.wavesurfer.regions.list)[0] as any;
+  //   if (region) {
+  //       if (this.wavesurfer.isPlaying()){
+  //         this.wavesurfer.playPause();
+  //       }
+  //       else{
+  //         // This only work in Readalongs Studio as spencil web server is missing a particular header
+  //         region.play();
+  //     }
+  //   }
+  // }
 
 
   previewAnchor() : void {
     if (this.isValidAnchorSetup()){
       let xmlString = generatePreviewXML(this.text, this.anchors);
       if (typeof window["updateAnchor"] === 'function') {
-        window["updateAnchor"].call(xmlString);
+        window["updateAnchor"].call(this, xmlString);
       }
       else{
         alert("window[updateAnchor].call(xmlString)");
       }
+      this.isPreviewed = true;
     }
   }
 
   exportPreview() : void {
-    if (this.isValidAnchorSetup()) {
-      window.location.href = "/download/aligned_preview";
+    // window.location.href = "/download/aligned_preview";
+    if (typeof window["exportPreview"] === 'function') {
+      window["exportPreview"].call();
+    }
+    else{
+      alert("window[exportPreview].call()");
     }
   }
 
   exportOriginal() : void {
-    window.location.href = `/download/${this.base}`;
+    // window.location.href = `/download/${this.base}`;
+    if (typeof window["exportOriginal"] === 'function') {
+      window["exportOriginal"].call(this, this.base);
+    }
+    else{
+      alert("window[exportOriginal].call(${this.base})");
+    }
   }
 
   /**
@@ -1031,23 +1035,29 @@ export class ReadAlongComponent {
       backend: "MediaElement",
       responsive: true,
       plugins: [
-        MarkersPlugin.create({
-          markers: [
-            {
-              id: "pointer",
-              time: 0,
-              label: "",
-              position: "top",
-              color: "#ffaa11",
-              draggable: true,
-            },
-          ],
-        }),
         RegionsPlugin.create({
-          regions: [],
+          regions: [
+            // {
+            //   start: 0,
+            //   end: 0,
+            //   loop: false,
+            // }
+          ],
           dragSelection: {
             slop: 5,
           },
+        }),
+        MarkersPlugin.create({
+          markers: [
+            // {
+            //   id: "pointer",
+            //   time: 0,
+            //   label: "",
+            //   position: "top",
+            //   color: "#ffaa11",
+            //   draggable: true,
+            // },
+          ],
         }),
       ],
     });
@@ -1061,15 +1071,34 @@ export class ReadAlongComponent {
       }
     });
 
-    this.wavesurfer.on("marker-drop", function (marker) {
-      if (marker.position === "top") {
-        _self.goToTime(marker.time);
+    // this.wavesurfer.on("marker-drop", function (marker) {
+    //   if (marker.position === "top") {
+    //     _self.goToTime(marker.time);
+    //   }
+    // });
+
+    this.wavesurfer.setDisabledEventEmissions("region-click");
+    this.wavesurfer.on("region-click", function (region) {
+      alert("Never come here anymore" + region)
+      console.log("Region Click")
+    });
+
+
+    this.wavesurfer.on('seek', function(progress) {
+      let time = progress * _self.wavesurfer.getDuration();
+
+      let region = Object.values(_self.wavesurfer.regions.list)[0] as any;
+      if (region != null && region.start <= time && region.end >= time) {
+        region.play();
+      }
+      else {
+        _self.goToTime(time);
       }
     });
 
-    this.wavesurfer.on("waveform-ready", function () {
-      _self.waveform.classList.add("anchorHide");
-    });
+    // this.wavesurfer.on("waveform-ready", function () {
+      // _self.waveform.classList.add("anchorHide");
+    // });
 
   }
 
@@ -1303,26 +1332,29 @@ export class ReadAlongComponent {
                                        onClick={() => {
                                          this.playing ? this.pause() : this.play()
                                        }}
-                                       class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                       class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons">{this.playing ? 'pause' : 'play_arrow'}</i>
+    <span class="tooltiptext">{this.playing ? 'Pause' : 'Play'}</span>
   </button>
 
   ReplayControl = (): Element => <button data-cy="replay-button" disabled={!this.isLoaded} aria-label="Rewind"
                                          onClick={() => this.goBack(5)}
-                                         class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                         class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons">replay_5</i>
+    <span class="tooltiptext">Rewind</span>
   </button>
 
   StopControl = (): Element => <button data-cy="stop-button" disabled={!this.isLoaded} aria-label="Stop"
                                        onClick={() => this.stop()}
-                                       class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                       class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons">stop</i>
+    <span class="tooltiptext">Stop</span>
   </button>
 
-  EditControl = (): Element => this.editable ? <input type="checkbox" data-cy="edit-button" aria-label="Edit"  data-check-switch="" role="switch" 
-                                       onChange={() => this.toggleAnchor()}
-                                       class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}
-                                       /> : <div/>
+  // EditControl = (): Element => this.editable ? <input type="checkbox" data-cy="edit-button" aria-label="Edit"  data-check-switch="" role="switch" 
+  //                                      onChange={() => this.toggleAnchor()}
+  //                                      class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}
+  //                                      /> : <div/>
 
 
   PlaybackSpeedControl = (): Element => <div>
@@ -1333,20 +1365,27 @@ export class ReadAlongComponent {
   </div>
 
   StyleControl = (): Element => <button aria-label="Change theme" onClick={() => this.changeTheme()}
-                                        class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                        class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons-outlined">style</i>
+    <span class="tooltiptext right">Change theme</span>
   </button>
 
   FullScreenControl = (): Element => <button aria-label="Full screen mode" onClick={() => this.toggleFullscreen()}
-                                             class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                             class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons" aria-label="Full screen mode">{this.fullscreen ? 'fullscreen_exit' : 'fullscreen'}</i>
+    <span class="tooltiptext right">Toogle screen mode</span>
   </button>
 
   TextTranslationDisplayControl = (): Element => <button data-cy="translation-toggle" aria-label="Toggle Translation"
                                                          onClick={() => this.toggleTextTranslation()}
-                                                         class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                                         class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons-outlined">subtitles</i>
+    <span class="tooltiptext right">Toggle translation</span>
   </button>
+
+
+
+
 
   ControlPanel = (): Element => <div data-cy="control-panel"
                                      class={"control-panel theme--" + this.theme + " background--" + this.theme}>
@@ -1354,7 +1393,12 @@ export class ReadAlongComponent {
       <this.PlayControl/>
       <this.ReplayControl/>
       <this.StopControl/>
-      <this.EditControl/>
+      {/* <this.EditControl/> */}
+      {/* <this.PlayWaveControl/> */}
+      {/* <this.PlayRegionControl/> */}
+      <this.PreviewControl/>
+      <this.ExportPreviewControl/>
+      <this.ExportOriginalControl/>
     </div>
 
     <div class="control-panel__buttons--center">
@@ -1372,43 +1416,24 @@ export class ReadAlongComponent {
    * Render for Anchor Controls
    * @returns 
    */
-  PlayWaveControl = (): Element => <button data-cy="play-wave-button" aria-label="Play/Pause"
-                                          onClick={() => this.playPause()}
-                                          class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-                                      <i class="material-icons-outlined">play_arrow</i> Play / Pause
-                                    </button>
-  PlayRegionControl = (): Element => <button data-cy="region-wave-button" aria-label="Preview Anchor"
-                                          onClick={() => this.playRegion()}
-                                          class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-                                      <i class="material-icons-outlined">loop</i> Play Region
-                                    </button>
   PreviewControl = (): Element => <button data-cy="preview-wave-button" aria-label="Preview Anchor"
                                           onClick={() => this.previewAnchor()}
-                                          class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-                                    <i class="material-icons-outlined">headphones</i> Preview
+                                          class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                          <i class="material-icons-outlined">headphones</i> 
+                                          <span class="tooltiptext">Preview the readalong after you have added anchor</span>
                                   </button>
-  ExportPreviewControl = (): Element => <button data-cy="export-original-button" aria-label="Export Preview"
-                                              onClick={() => this.exportPreview()}
-                                              class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-                                            <i class="material-icons-outlined">file_download</i> Save Preview
+  ExportPreviewControl = (): Element => <button data-cy="export-original-button" aria-label="Export Preview" disabled={!this.isPreviewed}
+                                              onClick={() => this.exportPreview()} 
+                                              class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                          <i class="material-icons-outlined">file_download</i> 
+                                          <span class="tooltiptext">Export the readalong preview version</span>
                                           </button>
   ExportOriginalControl = (): Element => <button data-cy="export-original-button" aria-label="Export Original"
                                                 onClick={() => this.exportOriginal()}
-                                                class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-                                            <i class="material-icons-outlined">system_update_alt</i> Save Original
+                                                class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+                                            <i class="material-icons-outlined">system_update_alt</i> 
+                                            <span class="tooltiptext">Export the original version</span>
                                           </button>
-
-  AnchorPanel = (): Element => <div data-cy="control-panel"
-                                     class={"control-panel theme--" + this.theme + " background--" + this.theme}>
-    <div class="anchor-panel">
-      <this.PlayWaveControl/>
-      <this.PlayRegionControl/>
-      <this.PreviewControl/>
-      <this.ExportPreviewControl/>
-      <this.ExportOriginalControl/>
-    </div>
-  </div>
-
 
   /**
    * Render main component
@@ -1466,7 +1491,6 @@ export class ReadAlongComponent {
           {this.svgOverlay ? <this.Overlay/> : null}
         </div>}
         {this.assetsStatus.AUDIO == LOADED && <this.ControlPanel/>}
-        {this.isAnchorMode && <this.AnchorPanel/>}
 
         {this.cssUrl && this.cssUrl.match(".css") != null && <link href={this.cssUrl} rel="stylesheet"/>}
       </div>
