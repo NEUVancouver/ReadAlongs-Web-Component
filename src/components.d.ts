@@ -17,9 +17,17 @@ export namespace Components {
          */
         "audio": string;
         /**
+          * Base folder for assets
+         */
+        "base": string;
+        /**
           * Optional custom Stylesheet to override defaults
          */
         "cssUrl"?: string;
+        /**
+          * Toggle Anchor dropping mode
+         */
+        "editable": boolean;
         /**
           * Language  of the interface. In 639-3 code Options are - "eng" for English - "fra" for French
          */
@@ -68,9 +76,17 @@ declare namespace LocalJSX {
          */
         "audio"?: string;
         /**
+          * Base folder for assets
+         */
+        "base"?: string;
+        /**
           * Optional custom Stylesheet to override defaults
          */
         "cssUrl"?: string;
+        /**
+          * Toggle Anchor dropping mode
+         */
+        "editable"?: boolean;
         /**
           * Language  of the interface. In 639-3 code Options are - "eng" for English - "fra" for French
          */

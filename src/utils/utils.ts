@@ -273,3 +273,50 @@ Sprite.prototype = {
 };
 
 
+
+/**
+ * Gets XML Document path
+ * @param {string} path - the path to the xml file
+ */
+ function getXMLDoc(path: string): XMLDocument {
+
+  let xmlhttp = new XMLHttpRequest();
+  xmlhttp.open("GET", path, false);//TODO rewrite as async
+  xmlhttp.addEventListener("error", function (error) {
+    console.log(error);
+  })
+  xmlhttp.send();
+
+  return xmlhttp.responseXML;
+}
+
+
+/**
+ * Process the XML to merge with the Anchors
+ */
+ export function generatePreviewXML(path : string, anchors : any[]) : String{
+
+  let xmlDoc =  getXMLDoc(path)
+
+  for (let anchor of anchors) {
+    let nodes = getElementByXpath(xmlDoc, `//w[@id='${anchor.id}']`);
+    let node = nodes.iterateNext();
+    let anchorNode = xmlDoc.createElement("anchor");
+    anchorNode.setAttribute("time", `${anchor.time.toFixed(2)}s`);
+    node.insertBefore(anchorNode, node.firstChild);
+  }
+
+  var anXMLSerializer = new XMLSerializer();
+  let xmlString = anXMLSerializer.serializeToString(xmlDoc);
+
+  // Replace the <w id="xxxxx"> and </w> since the make_dict.py will not accept this tag
+  xmlString = xmlString.replace(/<w id="[a-z|0-9]*">/g, "")
+  xmlString = xmlString.replace(/<\/w>/g, "")
+
+  console.log(xmlString);
+  return xmlString
+}
+
+function getElementByXpath(document, path) {
+  return document.evaluate(path, document, null, XPathResult.ANY_TYPE, null);
+}
