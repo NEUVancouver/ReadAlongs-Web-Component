@@ -84,9 +84,9 @@ export class ReadAlongComponent {
   @Prop() useAssetsFolder: boolean = true;
 
   /**
-   * Toggle Anchor dropping mode
+   * Mode [READING|EDITABLE|PREVIEW]
    */
-  @Prop() editable: boolean = false;
+  @Prop() mode: string = "READING";
 
   /**
    * Base folder for assets
@@ -252,7 +252,7 @@ export class ReadAlongComponent {
    *
    * @param s
    */
-  goToTime(time: number): void {
+  goToTime(time: number): String {
     let query_el = this.returnWordClosestTo(time);
     if (!query_el) return;
 
@@ -260,6 +260,9 @@ export class ReadAlongComponent {
     let seek = this.processed_alignment[tag][0];
     this.addHighlightingTo(query_el);
     this.goTo(seek);
+
+    // Scroll to the element
+    this.scrollTo(query_el);
 
     // Scroll horizontally (to different page) if needed
     let current_page = ReadAlongComponent._getSentenceContainerOfWord(query_el).parentElement.id
@@ -277,6 +280,7 @@ export class ReadAlongComponent {
         this.scrollByHeight(query_el)
       // }
     }
+
     // scroll horizontal (through paragraph) if needed
     if (this.inParagraphContentOverflow(query_el)) {
       // if (this.autoScroll) {
@@ -284,6 +288,8 @@ export class ReadAlongComponent {
         this.scrollByWidth(query_el)
       // }
     }
+
+    return tag;
   }
 
   /**
@@ -736,15 +742,20 @@ export class ReadAlongComponent {
    * Handle Word Click
    */
   handleWord(ev: MouseEvent): void {
-    if (!this.editable){
-      this.playSprite(ev);
-    }
-    else {
-      let el = ev.currentTarget as HTMLInputElement
-      let id = el.id;
-      let isAdding = !(this.anchors.some(x => x.id == id));
+    switch (this.mode){
+      case "ANCHOR":
+        let el = ev.currentTarget as HTMLInputElement
+        let id = el.id;
+        let isAdding = !(this.anchors.some(x => x.id == id));
+        (isAdding) ? this.addAnchor(el) : this.delAnchor(el);
 
-      (isAdding) ? this.addAnchor(el) : this.delAnchor(el);
+        let xmlString = generatePreviewXML(this.text, this.anchors);
+        window["updateAnchor"].call(this, xmlString);
+        
+        break;
+      default:
+        this.playSprite(ev);
+        break;
     }
   }
 
@@ -774,6 +785,7 @@ export class ReadAlongComponent {
     // Add Anchor icon
     let icon = this.createAnchor(id, color);
     element.parentElement.insertBefore(icon, element);
+
   }
 
 
@@ -827,16 +839,15 @@ export class ReadAlongComponent {
   /**
    * Waveform Control Panel
    */
-  previewAnchor() : void {
-    if (this.isValidAnchorSetup()){
-      let xmlString = generatePreviewXML(this.text, this.anchors);
-      window["updateAnchor"].call(this, xmlString);
-      this.isPreviewed = true;
-    }
-  }
+  // previewAnchor() : void {
+  //   if (this.isValidAnchorSetup()){
+  //     let xmlString = generatePreviewXML(this.text, this.anchors);
+  //     window["updateAnchor"].call(this, xmlString);
+  //     this.isPreviewed = true;
+  //   }
+  // }
 
   exportPreview() : void {
-    // window.location.href = "/download/aligned_preview";
     window["exportPreview"].call();
   }
 
@@ -849,12 +860,10 @@ export class ReadAlongComponent {
    * Validate the Anchor ordering
    */
   isValidAnchorSetup() : boolean {
-    if (this.anchors.length == 0) {
-      // toast.show("error", "There is no anchor setup currently.")
-      window["toast"]["show"].call(this, this.base);
-      alert("There is no anchor setup currently.");
-      return false;
-    }
+    // if (this.anchors.length == 0) {
+    //   window["toast"]["show"].call(this, "error", "There is no anchor setup currently.")
+    //   return false;
+    // }
 
     // Sort using the id, then copmare the timestamp
     this.anchors.sort(function (a, b) {
@@ -866,7 +875,7 @@ export class ReadAlongComponent {
     let previous = { time: -1 } as { time: number , text: string };
     for (let i = 0; i < this.anchors.length; i++) {
       if (previous.time > this.anchors[i].time) {
-        alert(`The text "${this.anchors[i].text}" is earlier than the previous text "${previous.text}"`);
+        window["toast"]["show"].call(this, "error", `The text "${this.anchors[i].text}" is earlier than the previous text "${previous.text}"`)
         return false;
       }
       previous = this.anchors[i];
@@ -1010,7 +1019,7 @@ export class ReadAlongComponent {
           },
         }),
         MarkersPlugin.create({
-          markers: [
+          markers: [ // Need to create dummy marker in order to support draggable
             {
               id: "-1",
               time: -1,
@@ -1024,6 +1033,7 @@ export class ReadAlongComponent {
       ],
     });
 
+    // Load the audio 
     this.wavesurfer.load(this.audio);
 
     this.wavesurfer.on("region-created", function (region) {
@@ -1033,6 +1043,7 @@ export class ReadAlongComponent {
       }
     });
 
+    // Disable the region click event as we use Seek method to control the audio
     this.wavesurfer.setDisabledEventEmissions("region-click");
 
     this.wavesurfer.on('seek', function(progress) {
@@ -1043,10 +1054,24 @@ export class ReadAlongComponent {
         region.play();
       }
       else {
-        _self.goToTime(time);
+        _self.wavesurfer.pause();
+
+        // Play the word if found
+        let tag = _self.goToTime(time);
+        if (tag) _self.audio_howl_sprites.play(tag)
       }
     });
 
+    this.wavesurfer.on('marker-drop', function(marker) {
+      if (_self.isValidAnchorSetup()){
+        let xmlString = generatePreviewXML(_self.text, _self.anchors);
+        window["updateAnchor"].call(this, xmlString);
+      }
+    });
+
+    // Update the Original Version
+    let xmlString = generatePreviewXML(_self.text, _self.anchors);
+    window["updateAnchor"].call(this, xmlString);
   }
 
   /**********
@@ -1335,9 +1360,9 @@ export class ReadAlongComponent {
       <this.PlayControl/>
       <this.ReplayControl/>
       <this.StopControl/>
-      <this.PreviewControl/>
-      <this.ExportPreviewControl/>
-      <this.ExportOriginalControl/>
+      {/* { this.mode === "ANCHOR" && <this.PreviewControl/>} */}
+      {/* { this.mode === "ANCHOR" && <this.ExportOriginalControl/>} */}
+      { this.mode === "PREVIEW" && <this.ExportPreviewControl/>}
     </div>
 
     <div class="control-panel__buttons--center">
@@ -1353,26 +1378,25 @@ export class ReadAlongComponent {
 
   /**
    * Render for Anchor Controls
-   * @returns 
    */
-  PreviewControl = (): Element => <button data-cy="preview-wave-button" aria-label="Preview Anchor"
-                                          onClick={() => this.previewAnchor()}
-                                          class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-                                          <i class="material-icons-outlined">headphones</i> 
-                                          <span class="tooltiptext">Preview the readalong after you have added anchor</span>
-                                  </button>
-  ExportPreviewControl = (): Element => <button data-cy="export-original-button" aria-label="Export Preview" disabled={!this.isPreviewed}
+  // PreviewControl = (): Element => <button data-cy="preview-wave-button" aria-label="Preview Anchor"
+  //                                         onClick={() => this.previewAnchor()}
+  //                                         class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+  //                                         <i class="material-icons-outlined">headphones</i> 
+  //                                         <span class="tooltiptext">Preview the readalong after you have added anchor</span>
+  //                                 </button>
+  ExportPreviewControl = (): Element => <button data-cy="export-original-button" aria-label="Export Preview"
                                               onClick={() => this.exportPreview()} 
                                               class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
                                           <i class="material-icons-outlined">file_download</i> 
                                           <span class="tooltiptext">Export the readalong preview version</span>
-                                          </button>
-  ExportOriginalControl = (): Element => <button data-cy="export-original-button" aria-label="Export Original"
-                                                onClick={() => this.exportOriginal()}
-                                                class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-                                            <i class="material-icons-outlined">system_update_alt</i> 
-                                            <span class="tooltiptext">Export the original version</span>
-                                          </button>
+                                        </button>
+  // ExportOriginalControl = (): Element => <button data-cy="export-original-button" aria-label="Export Original"
+  //                                               onClick={() => this.exportOriginal()}
+  //                                               class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+  //                                           <i class="material-icons-outlined">system_update_alt</i> 
+  //                                           <span class="tooltiptext">Export the original version</span>
+  //                                         </button>
 
   /**
    * Render main component
@@ -1386,7 +1410,7 @@ export class ReadAlongComponent {
         <h3 class="slot__subheader">
           <slot name="read-along-subheader"/>
         </h3>
-        { this.editable &&  <div id="anchorWave" /> }
+        { this.mode === "ANCHOR" &&  <div id="anchorWave" /> }
         {
           this.assetsStatus.AUDIO &&
           <p data-cy="audio-error"

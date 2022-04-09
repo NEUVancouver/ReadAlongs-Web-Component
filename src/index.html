@@ -21,17 +21,17 @@
     alignment="assets/test-data/beaver/beaver.smil"
     audio="assets/test-data/beaver/beaver.mp3" 
     language="en" 
-    editable="true" 
+    mode="ANCHOR" 
     base="test"> -->
     <read-along 
     text="assets/test-data/anchors-needed/aligned1649540602.xml" 
     alignment="assets/test-data/anchors-needed/aligned1649540602.smil"
     audio="assets/test-data/anchors-needed/aligned1649540602.mp3" 
     language="en" 
-    editable="true" 
+    mode="ANCHOR" 
     base="test">
-      <span slot="read-along-header" class="anchor">Title</span>
-      <span slot="read-along-subheader">SubTitle</span>
+      <!-- <span slot="read-along-header" class="anchor">Title</span>
+      <span slot="read-along-subheader">SubTitle</span> -->
     </read-along>
   </div>
 
@@ -45,7 +45,12 @@
   }
 
   function exportOriginal(base){
-    alert(`Export Original have been trigger ${base}`);
+    alert(`Export Original have been triggered ${base}`);
+  }
+
+  window.toast = {};
+  toast.show = (type, message) => {
+    alert(`Toast event have been triggered ${type} - ${message}`);
   }
 </script>
 

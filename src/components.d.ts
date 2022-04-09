@@ -25,13 +25,13 @@ export namespace Components {
          */
         "cssUrl"?: string;
         /**
-          * Toggle Anchor dropping mode
-         */
-        "editable": boolean;
-        /**
           * Language  of the interface. In 639-3 code Options are - "eng" for English - "fra" for French
          */
         "language": InterfaceLanguage;
+        /**
+          * Mode [READING|EDITABLE|PREVIEW]
+         */
+        "mode": string;
         /**
           * Toggles the page scrolling from horizontal to vertical. Defaults to horizontal
          */
@@ -84,13 +84,13 @@ declare namespace LocalJSX {
          */
         "cssUrl"?: string;
         /**
-          * Toggle Anchor dropping mode
-         */
-        "editable"?: boolean;
-        /**
           * Language  of the interface. In 639-3 code Options are - "eng" for English - "fra" for French
          */
         "language"?: InterfaceLanguage;
+        /**
+          * Mode [READING|EDITABLE|PREVIEW]
+         */
+        "mode"?: string;
         /**
           * Toggles the page scrolling from horizontal to vertical. Defaults to horizontal
          */
