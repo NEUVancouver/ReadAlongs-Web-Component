@@ -272,17 +272,17 @@ export class ReadAlongComponent {
 
     // scroll vertically (through paragraph) if needed
     if (this.inPageContentOverflow(query_el)) {
-      if (this.autoScroll) {
+      // if (this.autoScroll) {
         query_el.scrollIntoView(false);
         this.scrollByHeight(query_el)
-      }
+      // }
     }
     // scroll horizontal (through paragraph) if needed
     if (this.inParagraphContentOverflow(query_el)) {
-      if (this.autoScroll) {
+      // if (this.autoScroll) {
         query_el.scrollIntoView(false);
         this.scrollByWidth(query_el)
-      }
+      // }
     }
   }
 
@@ -827,40 +827,22 @@ export class ReadAlongComponent {
   /**
    * Waveform Control Panel
    */
-
-
-
   previewAnchor() : void {
     if (this.isValidAnchorSetup()){
       let xmlString = generatePreviewXML(this.text, this.anchors);
-      if (typeof window["updateAnchor"] === 'function') {
-        window["updateAnchor"].call(this, xmlString);
-      }
-      else{
-        alert("window[updateAnchor].call(xmlString)");
-      }
+      window["updateAnchor"].call(this, xmlString);
       this.isPreviewed = true;
     }
   }
 
   exportPreview() : void {
     // window.location.href = "/download/aligned_preview";
-    if (typeof window["exportPreview"] === 'function') {
-      window["exportPreview"].call();
-    }
-    else{
-      alert("window[exportPreview].call()");
-    }
+    window["exportPreview"].call();
   }
 
   exportOriginal() : void {
     // window.location.href = `/download/${this.base}`;
-    if (typeof window["exportOriginal"] === 'function') {
-      window["exportOriginal"].call(this, this.base);
-    }
-    else{
-      alert("window[exportOriginal].call(${this.base})");
-    }
+    window["exportOriginal"].call(this, this.base);
   }
 
   /**
@@ -869,6 +851,7 @@ export class ReadAlongComponent {
   isValidAnchorSetup() : boolean {
     if (this.anchors.length == 0) {
       // toast.show("error", "There is no anchor setup currently.")
+      window["toast"]["show"].call(this, this.base);
       alert("There is no anchor setup currently.");
       return false;
     }
@@ -1027,7 +1010,16 @@ export class ReadAlongComponent {
           },
         }),
         MarkersPlugin.create({
-          markers: [],
+          markers: [
+            {
+              id: "-1",
+              time: -1,
+              label: "",
+              position: "top",
+              color: "white",
+              draggable: true,
+            },
+          ],
         }),
       ],
     });

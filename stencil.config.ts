@@ -10,7 +10,11 @@ export const config: Config = {
       type: "www",
       serviceWorker: null, // disable service workers
       copy: [
-        { src: 'scss/fonts', dest: 'build/assets/fonts' }
+        { src: 'scss/fonts', dest: 'build/assets/fonts' },
+        // { src: 'scripts', dest: 'assets/scripts' },
+        // { src: 'style', dest: 'assets/style' },
+        { src: '../test-data', dest: 'assets/test-data' },
+        { src: '../test-data/pages', dest: 'assets/pages' }
       ]
     },
     {
