@@ -145,7 +145,7 @@ context("The Readalong Component (test xml and wav file)", () => {
    */
   const EXPECTED_LOADING_TIME = 2000; // ms
 
-  const FOR_AIDAN_TO_TALK_A_BIT = 3000; // ms
+  const FOR_AIDAN_TO_TALK_A_BIT = 6000; // ms
 
   beforeEach(() => {
     cy.visit("/ap_dan/");
@@ -174,7 +174,118 @@ context("The Readalong Component (test xml and wav file)", () => {
         readAlong.goToTime(5);
       });
     cy.readalong().within(() => {
-      cy.get("[id='t0b0d0p0s1w7']").should("have.class", "reading");
+      cy.get("[id = 't0b0d0p0s1w7']").should("have.class", "reading");
+    });
+  });
+
+  it("should have the correctly aligned tag compared with the xml with invalid tag below", () => {
+    cy.wait(EXPECTED_LOADING_TIME);
+    cy.readalongElement().should("be.visible");
+    cy.readalong().within(() => {
+      cy.get("[data-cy=text-container]").should(($el) => {
+        expect($el.children().length).equal(1, "has text");
+      });
+      cy.get("[data-cy=audio-error]")
+        .should("have.class", "fade")
+        .should("not.be.visible");
+      cy.get("[data-cy=control-panel]")
+        .should("have.length", 1)
+        .should("be.visible");
+      //check tag number should be correct
+      cy.get("[class='sentence__text theme--light']").should("have.length", 74);
+      cy.get("[data-cy=alignment-error]")
+        .should("have.class", "fade")
+        .should("not.be.visible");
+      cy.get("[data-cy=progress-bar]")
+        .should("have.length", 1)
+        .should("be.visible");
+    });
+  });
+
+  it("should play the entire ReadAlong", () => {
+    cy.wait(EXPECTED_LOADING_TIME);
+
+    cy.readalong().within(() => {
+      cy.get("[data-cy=play-button]").click();
+      cy.wait(FOR_AIDAN_TO_TALK_A_BIT);
+      cy.get("[data-cy=stop-button]").click();
+    });
+  });
+
+  it("should play a single word when clicked", () => {
+    cy.wait(EXPECTED_LOADING_TIME);
+
+    cy.readalong().contains("urbefolkeningerne").click();
+  });
+});
+
+// Cypress.on('uncaught:exception', (err, runnable) => {
+//   // returning false here prevents Cypress from
+//   // failing the test
+//   return false
+// });
+
+context("The Readalong Component (test xml with other tag and wav file) should work correctly with invalid tag", () => {
+  /**
+   * Wait for the audio and the SMIL to load.
+   */
+  const EXPECTED_LOADING_TIME = 2000; // ms
+
+  const FOR_AIDAN_TO_TALK_A_BIT = 6000; // ms
+
+  beforeEach(() => {
+    cy.visit("/ap_dan/index-other-tag-3.html");
+  });
+  //new test
+  it("should load successfully", () => {
+    cy.readalongElement()
+      .should("be.visible")
+      .invoke("attr", "language")
+      .should("equal", "en");
+  });
+
+  it("should get the time of selected word", function () {
+    cy.window()
+      .its("readAlong")
+      .then((readAlong) => {
+        expect(readAlong.getTime("t0b0d0p0s1w3")).to.equal(3.255);
+      });
+  });
+  
+  it("should highlight the word at the given time", function () {
+    cy.wait(EXPECTED_LOADING_TIME);
+    cy.window()
+      .its("readAlong")
+      .then((readAlong) => {
+        readAlong.goToTime(5);
+      });
+    cy.readalong().within(() => {
+      cy.get("[id='t0b0d0p0s1w7']")
+        .should("have.class", "reading");
+    });
+  });
+
+  it("should omit the invalid tag and align correctly", () => {
+    cy.wait(EXPECTED_LOADING_TIME);
+    cy.readalongElement().should("be.visible");
+    cy.readalong().within(() => {
+      cy.get("[data-cy=text-container]").should(($el) => {
+        expect($el.children().length).equal(1, "has text");
+      });
+      cy.get("[data-cy=audio-error]")
+        .should("have.class", "fade")
+        .should("not.be.visible");
+      cy.get("[data-cy=control-panel]")
+        .should("have.length", 1)
+        .should("be.visible");
+      //check there should be one more tag with sentence_text than the original xml
+      cy.get("[class='sentence__text theme--light']").should("have.length", 75);
+      cy.get("[data-cy=alignment-error]")
+        .should("have.class", "fade")
+        .should("not.be.visible");
+      cy.get("[data-cy=progress-bar]")
+        .should("have.length", 1)
+        .should("be.visible");
     });
   });
 
