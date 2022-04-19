@@ -26,8 +26,6 @@
         "wait-for-test-server": "wait-on http://localhost:3333/build/read-along.esm.js"
     },
     "dependencies": {
-        "howler": "^2.2.3",
-        "rxjs": "^6.6.7",
         "wavesurfer.js": "^6.1.0"
     },
     "devDependencies": {
