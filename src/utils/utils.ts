@@ -17,7 +17,7 @@ export interface Alignment {
  * Gets XML from path
  * @param {string} path - the path to the xml file
  */
-function getXML(path: string): string {
+export function getXML(path: string): string {
 
   let xmlhttp = new XMLHttpRequest();
   xmlhttp.open("GET", path, false);//TODO rewrite as async
@@ -35,7 +35,7 @@ function getXML(path: string): string {
  * @param {string} xpath - the xpath to evaluate with
  * @param {Document} xml - the xml to evaluate
  */
-function getNodeByXpath(xpath: string, xml: Document): Node[] {
+export function getNodeByXpath(xpath: string, xml: Document): Node[] {
   let xmlns = xml.lookupNamespaceURI(null);
   if (xmlns === null) {
     // console.error("Your XML file is missing an XML namespace.");
@@ -68,15 +68,12 @@ export function zip(arrays): Array<any[]> {
   });
 }
 
-
-/**
- * Return sentences from TEI xml file
- * @param {string} - the path to the TEI file
- */
-export function parseTEI(path: string): Page[] {
-  let xmlDocument =  getXML(path)
+export function parseTEIString(xml: string): Page[] {
   let parser = new DOMParser();
-  let xml_text = parser.parseFromString(xmlDocument, "text/xml")
+  let xml_text = parser.parseFromString(xml, "text/xml")
+  return parseTEIFromDoc(xml_text);
+}
+export function parseTEIFromDoc(xml_text: Document): Page[] {
   let pages = getNodeByXpath('.//div[@type="page"]', xml_text)
   let parsed_pages = pages.map((p: Element) => {
     let id = p.id;
@@ -92,6 +89,13 @@ export function parseTEI(path: string): Page[] {
     return parsed_page
   });
   return parsed_pages
+}
+/**
+ * Return sentences from TEI xml file
+ * @param {string} - the path to the TEI file
+ */
+export function parseTEI(path: string): Page[] { 
+  return parseTEIString(getXML(path));
 }
 
 

@@ -18,26 +18,6 @@ context("The Readalong Component (test xml and m4a file)", () => {
       .should("equal", "fra");
   });
 
-  it("should return a time specs when invoke getTime", () => {
-    cy.window()
-      .its('readAlong')
-      .invoke('getTime', 't0b0d1p0s1w4')
-      .should('eq', 15.36);
-  });
-
-  it("should highlight the word at the given time", () => {
-    cy.wait(EXPECTED_LOADING_TIME);
-    cy.window()
-      .its('readAlong')
-      .then(readAlong => {
-        console.log(readAlong);
-        console.log(readAlong.goToTime(5));
-        cy.readalong().within(() => {
-          cy.get("[id = 't0b0d0p0s2w9']").should('have.class', 'reading');  // should update the class attributes when execute goToTime
-        })
-      })
-  });
-
   it("should play the entire ReadAlong", () => {
     cy.wait(EXPECTED_LOADING_TIME);
 
@@ -102,26 +82,6 @@ context("The Readalong Component (test xml and mp3 file)", () => {
       .should("equal", "gla");
   });
 
-  it("should get the time of selected word", function () {
-    cy.window()
-      .its("readAlong")
-      .then((readAlong) => {
-        expect(readAlong.getTime("t0b0d0p0s0w6")).to.equal(1.77);
-      });
-  });
-
-  it("should highlight the word at the given time", function () {
-    cy.wait(EXPECTED_LOADING_TIME);
-    cy.window()
-      .its("readAlong")
-      .then((readAlong) => {
-        readAlong.goToTime(3);
-      });
-    cy.readalong().within(() => {
-      cy.get("[id='t0b0d0p0s0w9']").should("have.class", "reading");  // should update the class attributes when execute goToTime
-    });
-  });
-
   it("should play the entire ReadAlong", () => {
     cy.wait(EXPECTED_LOADING_TIME);
 
@@ -156,26 +116,6 @@ context("The Readalong Component (test xml and wav file)", () => {
       .should("be.visible")
       .invoke("attr", "language")
       .should("equal", "en");
-  });
-
-  it("should get the time of selected word", function () {
-    cy.window()
-      .its("readAlong")
-      .then((readAlong) => {
-        expect(readAlong.getTime("t0b0d0p0s1w1")).to.equal(2.27);
-      });
-  });
-  
-  it("should highlight the word at the given time", function () {
-    cy.wait(EXPECTED_LOADING_TIME);
-    cy.window()
-      .its("readAlong")
-      .then((readAlong) => {
-        readAlong.goToTime(5);
-      });
-    cy.readalong().within(() => {
-      cy.get("[id = 't0b0d0p0s1w7']").should("have.class", "reading");
-    });
   });
 
   it("should have the correctly aligned tag compared with the xml with invalid tag below", () => {
@@ -219,12 +159,6 @@ context("The Readalong Component (test xml and wav file)", () => {
   });
 });
 
-// Cypress.on('uncaught:exception', (err, runnable) => {
-//   // returning false here prevents Cypress from
-//   // failing the test
-//   return false
-// });
-
 context("The Readalong Component (test xml with other tag and wav file) should work correctly with invalid tag", () => {
   /**
    * Wait for the audio and the SMIL to load.
@@ -242,27 +176,6 @@ context("The Readalong Component (test xml with other tag and wav file) should w
       .should("be.visible")
       .invoke("attr", "language")
       .should("equal", "en");
-  });
-
-  it("should get the time of selected word", function () {
-    cy.window()
-      .its("readAlong")
-      .then((readAlong) => {
-        expect(readAlong.getTime("t0b0d0p0s1w3")).to.equal(3.255);
-      });
-  });
-  
-  it("should highlight the word at the given time", function () {
-    cy.wait(EXPECTED_LOADING_TIME);
-    cy.window()
-      .its("readAlong")
-      .then((readAlong) => {
-        readAlong.goToTime(5);
-      });
-    cy.readalong().within(() => {
-      cy.get("[id='t0b0d0p0s1w7']")
-        .should("have.class", "reading");
-    });
   });
 
   it("should omit the invalid tag and align correctly", () => {

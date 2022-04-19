@@ -27,7 +27,8 @@
     },
     "dependencies": {
         "howler": "^2.2.3",
-        "rxjs": "^6.6.7"
+        "rxjs": "^6.6.7",
+        "wavesurfer.js": "^6.1.0"
     },
     "devDependencies": {
         "@stencil/core": "^2.8.1",
