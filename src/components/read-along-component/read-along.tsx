@@ -1754,7 +1754,7 @@ export class ReadAlongComponent {
             <span
               class="material-icons-outlined"> error </span>
             <span>{this.anchorAlertMessage.message}</span>
-            <button style={{ border: 'none', padding: '0px', float: 'inline-end' }} class='alert status-2' onClick={this.closeAnchorAlert}>
+            <button style={{ border: 'none', padding: '0px', float: 'right' }} class='alert status-2' onClick={this.closeAnchorAlert}>
               <span class="material-icons">
                 cancel
               </span>
