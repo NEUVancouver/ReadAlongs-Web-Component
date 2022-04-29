@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<TEI>
+    <!-- To exclude any element from alignment, add the do-not-align="true" attribute to
+         it, e.g., <p do-not-align="true">...</p>, or
+         <s>Some text <foo do-not-align="true">do not align this</foo> more text</s> -->
+    <text xml:lang="gla" fallback-langs="und" id="t0">
+        <body id="t0b0">
+            <div type="page" id="t0b0d0">
+                <p id="t0b0d0p0">
+                    <s id="t0b0d0p0s0"><w id="t0b0d0p0s0w0">Rugadh</w> <w id="t0b0d0p0s0w1">na</w> <w id="t0b0d0p0s0w2">h</w>-<w id="t0b0d0p0s0w3">uile</w> <w id="t0b0d0p0s0w4">duine</w> <w id="t0b0d0p0s0w5">saor</w> <w id="t0b0d0p0s0w6">agus</w> <w id="t0b0d0p0s0w7">co</w>-<w id="t0b0d0p0s0w8">ionnan</w> <w id="t0b0d0p0s0w9">nan</w> <w id="t0b0d0p0s0w10">urram</w> '<w id="t0b0d0p0s0w11">s</w> <w id="t0b0d0p0s0w12">nan</w> <w id="t0b0d0p0s0w13">còirichean</w>. <w id="t0b0d0p0s0w14">Tha</w> <w id="t0b0d0p0s0w15">iad</w> <w id="t0b0d0p0s0w16">reusanta</w> <w id="t0b0d0p0s0w17">is</w> <w id="t0b0d0p0s0w18">cogaiseach</w>, <w id="t0b0d0p0s0w19">agus</w> <w id="t0b0d0p0s0w20">bu</w> <w id="t0b0d0p0s0w21">chòir</w> <w id="t0b0d0p0s0w22">dhaibh</w> <w id="t0b0d0p0s0w23">a</w> <w id="t0b0d0p0s0w24">ghiùlain</w> <w id="t0b0d0p0s0w25">ris</w> <w id="t0b0d0p0s0w26">a</w> <w id="t0b0d0p0s0w27">chèile</w> <w id="t0b0d0p0s0w28">ann</w> <w id="t0b0d0p0s0w29">an</w> <w id="t0b0d0p0s0w30">spiorad</w> <w id="t0b0d0p0s0w31">bràthaireil</w>.</s>
+                </p>
+            </div>
+        </body>
+    </text>
+</TEI>

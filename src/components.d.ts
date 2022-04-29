@@ -5,7 +5,8 @@
  * It contains typing information for all components that exist in this project.
  */
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
-import { InterfaceLanguage } from "./components/read-along-component/read-along";
+import { InterfaceLanguage } from "./components/read-along-component/translation";
+import { ReadAlongMode } from "./components/read-along-component/read-along";
 export namespace Components {
     interface ReadAlong {
         /**
@@ -24,6 +25,10 @@ export namespace Components {
           * Language  of the interface. In 639-3 code Options are - "eng" for English - "fra" for French
          */
         "language": InterfaceLanguage;
+        /**
+          * OPTIONAL
+         */
+        "mode": ReadAlongMode;
         /**
           * Toggles the page scrolling from horizontal to vertical. Defaults to horizontal
          */
@@ -75,6 +80,10 @@ declare namespace LocalJSX {
           * Language  of the interface. In 639-3 code Options are - "eng" for English - "fra" for French
          */
         "language"?: InterfaceLanguage;
+        /**
+          * OPTIONAL
+         */
+        "mode"?: ReadAlongMode;
         /**
           * Toggles the page scrolling from horizontal to vertical. Defaults to horizontal
          */

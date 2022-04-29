@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<TEI>
+    <!-- To exclude any element from alignment, add the do-not-align="true" attribute to
+         it, e.g., <p do-not-align="true">...</p>, or
+         <s>Some text <foo do-not-align="true">do not align this</foo> more text</s> -->
+    <text xml:lang="dan" fallback-langs="und" id="t0">
+        <body id="t0b0">
+            <div type="page" id="t0b0d0">
+                <p id="t0b0d0p0">
+                    <s id="t0b0d0p0s0"><w id="t0b0d0p0s0w0">Hej</w>.</s>
+                    <s id="t0b0d0p0s1"><w id="t0b0d0p0s1w0">Jeg</w> <w id="t0b0d0p0s1w1">hedder</w> <w id="t0b0d0p0s1w2">Aidan</w><b id="t0b0d0p0s1b1"/>, <w id="t0b0d0p0s1w3">og</w> <w id="t0b0d0p0s1w4">jeg</w> <w id="t0b0d0p0s1w5">laver</w> <w id="t0b0d0p0s1w6">forskning</w> <w id="t0b0d0p0s1w7">og</w> <w id="t0b0d0p0s1w8">udvikling</w> <w id="t0b0d0p0s1w9">for</w> <w id="t0b0d0p0s1w10">sprogene</w> <w id="t0b0d0p0s1w11">af</w> <w id="t0b0d0p0s1w12">urbefolkeningerne</w> <w id="t0b0d0p0s1w13">fra</w> <w id="t0b0d0p0s1w14">landet</w> <w id="t0b0d0p0s1w15">vi</w> <w id="t0b0d0p0s1w16">nu</w> <w id="t0b0d0p0s1w17">hedder</w> <w id="t0b0d0p0s1w18">Canada</w>.</s>
+                    <s id="t0b0d0p0s2"><w id="t0b0d0p0s2w0">Jeg</w> <w id="t0b0d0p0s2w1">interesser</w> <w id="t0b0d0p0s2w2">mig</w> <w id="t0b0d0p0s2w3">for</w> <w id="t0b0d0p0s2w4">open</w> <w id="t0b0d0p0s2w5">source</w> <w id="t0b0d0p0s2w6">sprogteknologi</w>, <w id="t0b0d0p0s2w7">som</w> <w id="t0b0d0p0s2w8">gør</w> <w id="t0b0d0p0s2w9">det</w> <w id="t0b0d0p0s2w10">lettere</w> <w id="t0b0d0p0s2w11">at</w> <w id="t0b0d0p0s2w12">bruge</w> <w id="t0b0d0p0s2w13">sprogene</w> <w id="t0b0d0p0s2w14">på</w> <w id="t0b0d0p0s2w15">computere</w>.</s>
+                    <s id="t0b0d0p0s3"><w id="t0b0d0p0s3w0">Jeg</w> <w id="t0b0d0p0s3w1">elsker</w> <w id="t0b0d0p0s3w2">mit</w> <w id="t0b0d0p0s3w3">job</w>, <w id="t0b0d0p0s3w4">og</w> <w id="t0b0d0p0s3w5">jeg</w> <w id="t0b0d0p0s3w6">synes</w> <w id="t0b0d0p0s3w7">det</w> <w id="t0b0d0p0s3w8">er</w> <w id="t0b0d0p0s3w9">totalt</w> <w id="t0b0d0p0s3w10">fascinerende</w> <w id="t0b0d0p0s3w11">at</w> <w id="t0b0d0p0s3w12">arbejde</w> <w id="t0b0d0p0s3w13">i</w> <w id="t0b0d0p0s3w14">en</w> <w id="t0b0d0p0s3w15">videnskabelig</w> <w id="t0b0d0p0s3w16">disciplin</w> <w id="t0b0d0p0s3w17">hvor</w> <w id="t0b0d0p0s3w18">jeg</w> <w id="t0b0d0p0s3w19">kan</w> <w id="t0b0d0p0s3w20">kombinere</w> <w id="t0b0d0p0s3w21">mine</w> <w id="t0b0d0p0s3w22">intellektuelle</w> <w id="t0b0d0p0s3w23">interesser</w> <w id="t0b0d0p0s3w24">i</w> <w id="t0b0d0p0s3w25">sprog</w> <w id="t0b0d0p0s3w26">og</w> <w id="t0b0d0p0s3w27">datalogi</w> <w id="t0b0d0p0s3w28">med</w> <w id="t0b0d0p0s3w29">mine</w> <w id="t0b0d0p0s3w30">politiske</w> <w id="t0b0d0p0s3w31">interesser</w> <w id="t0b0d0p0s3w32">i</w> <w id="t0b0d0p0s3w33">Canadiske</w> <w id="t0b0d0p0s3w34">historie</w> <w id="t0b0d0p0s3w35">og</w> <w id="t0b0d0p0s3w36">afkolinsering</w>.</s>
+                    <s id="t0b0d0p0s4"><w id="t0b0d0p0s4w0">Tak</w>.</s>
+                </p>
+            </div>
+        </body>
+    </text>
+</TEI>

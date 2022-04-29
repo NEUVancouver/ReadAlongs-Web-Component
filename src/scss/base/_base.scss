@@ -87,7 +87,7 @@ $value in $ui-themes {
 
         // @extend %border--strong--left;
         // @extend %border--strong--right;
-  
+
     }
 
     /* Handle */
@@ -189,4 +189,90 @@ $space: 0;
     }
 
     $space: $space+5;
+}
+
+/* Tooltip container */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    // border-bottom: 1px dotted black; /* If you want dots under the hoverable text */
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 100px;
+    background-color: #036;
+    color: #fff;
+    text-align: left;
+    padding: 5px;
+    border-radius: 6px;
+    overflow-x: hidden;
+
+    opacity: 20%;
+    transition: opacity 0.6s;
+
+    /* Position the tooltip text - see examples below! */
+    position: absolute;
+    z-index: 1;
+
+    top: 20px;
+    left: -50%;
+}
+
+.tooltip .tooltiptext.right {
+    left: -400%;
+}
+
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+.context-menu {
+    display: none;
+    position: fixed;
+    z-index: 10;
+    padding: 10px;
+    height: 20px;
+    background-color: #fff;
+    border: solid 1px #dfdfdf;
+    box-shadow: 1px 1px 2px #cfcfcf;
+}
+
+.context-menu--two {
+    height: 40px;
+}
+.context-menu--one{
+    height: 20px;
+}
+.context-menu--active {
+    display: block;
+}
+
+.context-menu__items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.context-menu__link {
+    color: #337ab7;
+    text-decoration: none;
+    background-color: transparent;
+    transition: color 0.2s;
+    outline: none;
+    font-family: "Lato", sans-serif;
+    cursor: pointer;
+}
+
+.context-menu__link:hover {
+    color: #fff;
+    background-color: #0066aa;
+}
+
+.hidden {
+    display: none;
 }

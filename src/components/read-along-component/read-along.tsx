@@ -1,16 +1,29 @@
-import {Component, Element, Listen, Prop, State, h} from '@stencil/core';
-import {distinctUntilChanged} from 'rxjs/operators';
-import {Subject} from 'rxjs';
-import {Howl} from 'howler';
-import {Alignment, Page, parseSMIL, parseTEI, Sprite} from '../../utils/utils'
+import { Component, Element, Listen, Prop, State, h } from '@stencil/core';
+import { Alignment, Page, parseSMIL, getXML, parseTEIFromDoc } from '../../utils/utils'
+import WaveSurfer from 'wavesurfer.js';
+import MarkersPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.markers'
+import RegionsPlugin from 'wavesurfer.js/dist/plugin/wavesurfer.regions';
+import Region from 'wavesurfer.js/src/plugin/regions';
+import { InterfaceLanguage, returnTranslation } from './translation';
+
+import palette from './palette';
 
 const LOADING = 0;
 const LOADED = 1;
 const ERROR_LOADING = 2;
-export type InterfaceLanguage = "eng" | "fra";//iso 639-3 code
-export type Translation = {
-  [lang in InterfaceLanguage]: string;
-};
+const MARKER_WIDTH = '11px';
+const MARKER_HEIGHT = '22px';
+const CONTEXT_MENU_ACTIVE = "context-menu--active";
+const CONTEXT_MENU_LINK_CLASSNAME = "context-menu__link";
+const CONTEXT_MENU_CLASSNAME = "context-menu";
+const DARK_BACKGROUND = "#3c4369";
+const LIGHT_BACKGROUND = '#FFFFFF';
+const CONTEXT_MENU_ONE = 'context-menu--one';
+const CONTEXT_MENU_TWO = 'context-menu--two';
+const CONTEXT_MENU_HIDDEN = 'hidden';
+
+export type ReadAlongMode = "READ-ONLY" | "ANCHOR" | "PREVIEW";
+type AnchorInfo = { id: string, color: string, element: Element, time: number }
 
 @Component({
   tag: 'read-along',
@@ -28,25 +41,21 @@ export class ReadAlongComponent {
   /**
    * The text as TEI
    */
-  @Prop({mutable: true}) text: string;
+  @Prop({ mutable: true }) text: string;
 
 
 
   /**
    * The alignment as SMIL
    */
-  @Prop({mutable: true}) alignment: string;
+  @Prop({ mutable: true }) alignment: string;
 
   processed_alignment: Alignment;
 
   /**
    * The audio file
    */
-  @Prop({mutable: true}) audio: string;
-
-  audio_howl_sprites: Howl;
-  reading$: Subject<string>; // An RxJs Subject for the current item being read.
-  duration: number; // Duration of the audio file
+  @Prop({ mutable: true }) audio: string;
 
   /**
    * Overlay
@@ -57,7 +66,7 @@ export class ReadAlongComponent {
   /**
    * Theme to use: ['light', 'dark'] defaults to 'dark'
    */
-  @Prop({mutable: true}) theme: string = 'light';
+  @Prop({ mutable: true }) theme: string = 'light';
 
   /**
    * Language  of the interface. In 639-3 code
@@ -65,7 +74,7 @@ export class ReadAlongComponent {
    * - "eng" for English
    * - "fra" for French
    */
-  @Prop({mutable: true}) language: InterfaceLanguage = 'eng';
+  @Prop({ mutable: true }) language: InterfaceLanguage = 'eng';
 
   /**
    * Optional custom Stylesheet to override defaults
@@ -85,7 +94,10 @@ export class ReadAlongComponent {
    */
 
   @Prop() pageScrolling: "horizontal" | "vertical" = "horizontal";
-
+  /**
+   * OPTIONAL
+   */
+  @Prop() mode: ReadAlongMode = "READ-ONLY";
   /************
    *  STATES  *
    ************/
@@ -104,7 +116,8 @@ export class ReadAlongComponent {
   @State() isLoaded: boolean = false;
   showGuide: boolean = false;
 
-  parsed_text;
+  @State() parsed_text;
+  @State() anchorAlertMessage: { show: boolean, message: string } = { show: false, message: '' };
 
   current_page;
   hasTextTranslations: boolean = false;
@@ -113,19 +126,28 @@ export class ReadAlongComponent {
     'XML': LOADING,
     'SMIL': LOADING
   };
-
-
+  contextMenuElement: Element;
+  wavesurfer: WaveSurfer;
+  xmlDoc: Document;
+  playingWord: HTMLElement;
+  workingAnchorTime: number[];
+  palette: string[];
+  progressBarElement;
+  allAnchors: { [id: string]: AnchorInfo };
+  workingXmlDoc: Document;  // for storing temp anchor position of anchors outside sentence tags
   /************
    *  LISTENERS  *
    ************/
 
-  @Listen('wheel', {target: 'window'})
+  @Listen('wheel', { target: 'window' })
   wheelHandler(event: MouseEvent): void {
     // only show guide if there is an actual highlighted element
     if (this.el.shadowRoot.querySelector('.reading')) {
-      if (event['path'][0].classList.contains("sentence__word") ||
-        event['path'][0].classList.contains("sentence__container") ||
-        event['path'][0].classList.contains("sentence")) {
+      let path = event.composedPath();
+      let first = path[0] as Element;
+      if (first.classList.contains("sentence__word") ||
+        first.classList.contains("sentence__container") ||
+        first.classList.contains("sentence")) {
         if (this.autoScroll) {
           let reading_el: HTMLElement = this.el.shadowRoot.querySelector('.reading')
           if (reading_el) {
@@ -135,11 +157,402 @@ export class ReadAlongComponent {
         }
       }
     }
+    this.toggleMenuOff();
   }
+
+  @Listen('contextmenu', { target: 'window' })
+  contextMenuHandler(e: PointerEvent): void {
+    if (this.mode !== 'ANCHOR') {
+      return;
+    }
+    let taskItemInContext: Element = this.lookupElement(e);
+    this.contextMenuElement = taskItemInContext;
+
+    //TODO manu on off fix
+    if (!taskItemInContext) {
+      this.toggleMenuOff();
+      return;
+    }
+    e.preventDefault();
+    this.toggleMenuOn(taskItemInContext, this.getPosition(e));
+
+  }
+  @Listen('keyup', { target: 'window' })
+  keyUpHandler(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.toggleMenuOff();
+    }
+  }
+
+  @Listen('resize', { target: 'window' })
+  resizeHandler(): void {
+    this.toggleMenuOff();
+  }
+
+  @Listen('click', { target: 'window' })
+  clickHandler(e: MouseEvent): void {
+    let hasContextMenuClicked = this.clickedInside(e, CONTEXT_MENU_LINK_CLASSNAME);
+    if (!hasContextMenuClicked) {
+      if (!this.clickedInside(e, CONTEXT_MENU_CLASSNAME)) {
+        if (e.which === 1 || e.button === 1) {
+          this.toggleMenuOff();
+        }
+      }
+    }
+  }
+
+  /******************
+   *  CONTEXT MENU  *
+   ******************/
+  /**
+   * Hide the context menu
+   */
+  toggleMenuOff = () => {
+    this.contextMenuElement = null;
+    let menu: HTMLElement = this.el.shadowRoot.querySelector("#context-menu");
+    menu.classList.remove(CONTEXT_MENU_ACTIVE);
+    menu.classList.remove(CONTEXT_MENU_ONE)
+    menu.classList.remove(CONTEXT_MENU_TWO)
+
+  }
+  /**
+   * Show context menu
+   * @param e  the word element the context menu shows for
+   * @param x  the x coordinate of the context menu
+   * @param y  the y coordinate of the context menu
+   * @returns 
+   */
+  toggleMenuOn = (element: Element, { x: x, y: y }): void => {
+    let id = element.id;
+
+
+
+    let p = this.el.shadowRoot;
+    let menu: HTMLElement = p.querySelector("#context-menu");
+    let addAnchor: HTMLElement = p.querySelector('[data-action="add-anchor"]');
+    let addAnchorAfter: HTMLElement = p.querySelector('[data-action="add-anchor-after"]');
+    let delAnchor: HTMLElement = p.querySelector('[data-action="del-anchor"]');
+    // if tagName === 'svg' or 'polygon', delete menu
+    if (element.tagName === 'svg' || element.tagName === 'polygon') {
+      id = element.id.substring(0, element.id.length - element.tagName.length - 1);
+      if (!addAnchor.classList.contains(CONTEXT_MENU_HIDDEN)) {
+        addAnchor.classList.add(CONTEXT_MENU_HIDDEN);
+      }
+      if (!addAnchorAfter.classList.contains(CONTEXT_MENU_HIDDEN)) {
+        addAnchorAfter.classList.add(CONTEXT_MENU_HIDDEN);
+      }
+
+      delAnchor.classList.remove(CONTEXT_MENU_HIDDEN);
+    } else {
+      let xmlElement = this.workingXmlDoc.getElementById(id);
+      let prev = this.getPreviousWordOrAnchor(xmlElement);
+      let prevOfPrev = this.getPreviousWordOrAnchor(prev);
+      let showBefore: boolean = !(prev && prev.tagName === 'anchor' && prevOfPrev && prevOfPrev.tagName === 'anchor');
+
+      let showAfter: boolean = false;
+      if (this.isLastWordOfParagraph(id)) {
+        let next = this.getNextWordOrAnchor(xmlElement);
+        let nextOfNext = this.getNextWordOrAnchor(next);
+
+        showAfter = !(next && next.tagName === 'anchor' && nextOfNext && nextOfNext.tagName === 'anchor');
+      }
+      // cannot add anchor before nor after
+      if (!showAfter && !showBefore) {
+        return;
+      }
+
+      if (showBefore) {
+        addAnchor.classList.remove(CONTEXT_MENU_HIDDEN);
+      } else if (!addAnchor.classList.contains(CONTEXT_MENU_HIDDEN)) {
+        addAnchor.classList.add(CONTEXT_MENU_HIDDEN)
+      }
+      if (showAfter) {
+        addAnchorAfter.classList.remove(CONTEXT_MENU_HIDDEN);
+      } else if (!addAnchorAfter.classList.contains(CONTEXT_MENU_HIDDEN)) {
+        addAnchorAfter.classList.add(CONTEXT_MENU_HIDDEN);
+      }
+      if (showBefore && showAfter) {
+        menu.classList.add(CONTEXT_MENU_TWO)
+      } else {
+        menu.classList.add(CONTEXT_MENU_ONE);
+      }
+
+      if (!delAnchor.classList.contains(CONTEXT_MENU_HIDDEN)) {
+        delAnchor.classList.add(CONTEXT_MENU_HIDDEN);
+      }
+      this.workingAnchorTime = this.processed_alignment[id];
+    }
+    menu.classList.add(CONTEXT_MENU_ACTIVE);
+    menu.setAttribute("data-id", id);
+
+    this.positionMenu(x, y, "#context-menu");
+
+
+  }
+
+  /**
+   * ANCHOR OPERATIONS
+   */
+  getAnchorId = (parentElementId: string) => {
+    let i: number = 0;
+    let id = `${parentElementId}anchor${i}`;
+    while (this.allAnchors[id]) {
+      id = `${parentElementId}anchor${++i}`;
+    }
+    return id;
+  }
+  insertAnchorAfter = (event: MouseEvent) => {
+    this.insertAnchor(event, false);
+  }
+  insertAnchorBefore = (event: MouseEvent) => {
+    this.insertAnchor(event, true);
+  }
+  insertAnchor = (event: MouseEvent, before: boolean) => {
+    event.preventDefault();
+    let menu: HTMLElement = this.el.shadowRoot.querySelector("#context-menu");
+    let wordId: string = menu.getAttribute("data-id");
+
+    let xmlDoc = this.xmlDoc;
+    let wordElement = xmlDoc.getElementById(wordId);
+    let anchorId = this.getAnchorId(wordElement.parentElement['id']);
+
+    let color: string = this.palette.pop();
+    let time = (before ? this.workingAnchorTime[0] : this.workingAnchorTime[0] + this.workingAnchorTime[1]) / 1000.0;
+    // insert anchor as a marker in waveform 
+    let anchor = this.wavesurfer.markers.add({
+      time,
+      label: "",
+      color: color,
+      draggable: true
+    });
+    anchor.id = anchorId;
+
+    // insert anchor to XML
+    let anchorNode = xmlDoc.createElement("anchor");
+    anchorNode.setAttribute('id', anchorId);
+    anchorNode.setAttribute('time', `${time.toFixed(2)}s`)
+    this.allAnchors[anchorId] = { id: anchorId, color, element: anchorNode, time };
+
+    // update working XML
+    let workingAnchorNode = this.workingXmlDoc.createElement('anchor');
+    workingAnchorNode.setAttribute('id', anchorId);
+    workingAnchorNode.setAttribute('time', `${time.toFixed(2)}s`)
+    let workingWordElement = this.workingXmlDoc.getElementById(wordId);
+
+    if (before) {
+      wordElement.parentElement.insertBefore(anchorNode, wordElement);
+      workingWordElement.parentElement.insertBefore(workingAnchorNode, workingWordElement);
+    } else {
+      if (wordElement.nextSibling) {
+        wordElement.parentElement.insertBefore(anchorNode, wordElement.nextSibling);
+        workingWordElement.parentElement.insertBefore(workingAnchorNode, workingWordElement.nextSibling);
+      } else {
+        wordElement.parentElement.appendChild(anchorNode);
+        workingWordElement.parentElement.appendChild(workingAnchorNode);
+      }
+
+    }
+
+    // update parsed_text
+    this.parsed_text = parseTEIFromDoc(this.workingXmlDoc);
+
+    this.updateAnchorBackend();
+    this.toggleMenuOff();
+  }
+  deleteAnchor = (event: MouseEvent) => {
+    event.preventDefault();
+
+    let menu: HTMLElement = this.el.shadowRoot.querySelector("#context-menu");
+    let anchorId: string = menu.getAttribute("data-id");
+    // Remove from waveForm
+    let xmlDoc = this.xmlDoc;
+    let anchorElement = xmlDoc.getElementById(anchorId);
+    // remove node from xml
+    anchorElement.parentElement.removeChild(anchorElement);
+
+    // remove node from working XML Doc 
+    let workingXmlDoc = this.workingXmlDoc;
+    anchorElement = workingXmlDoc.getElementById(anchorId);
+    anchorElement.parentElement.removeChild(anchorElement);
+
+    // remove node from parsed_text
+    this.parsed_text = parseTEIFromDoc(workingXmlDoc);
+
+    // remove anchor from waveform
+    let n = this.wavesurfer.markers.markers
+      .findIndex(m => m.id === anchorId);
+    this.wavesurfer.markers.remove(n);
+
+    delete this.allAnchors[anchorId];
+
+    this.updateAnchorBackend();
+    this.toggleMenuOff();
+  }
+
+  updateAnchorBackend = () => {
+    let fx = window['updateAnchor'];
+    if (typeof (fx) !== 'function') {
+      console.log('Invalid updateAnchor');
+      return;
+    }
+
+    //convert to string
+    let xmlString = new XMLSerializer().serializeToString(this.xmlDoc);
+    // Replace the <w id="xxxxx"> and </w> since the make_dict.py will not accept this tag
+    xmlString = xmlString.replace(/<w id="[a-z|0-9]*">/g, "")
+    xmlString = xmlString.replace(/<\/w>/g, "")
+    fx.call(this, xmlString);
+  }
+
+  closeAnchorAlert = (e: Event) => {
+    e.preventDefault();
+    this.anchorAlertMessage = { show: false, message: '' };
+  }
+
+  /**
+   * Export the XML, SMIL and audio file as a bundle
+   */
+  exportPreview = (): void => {
+    let fx = window["exportPreview"];
+    if (typeof (fx) !== 'function') {
+      console.log('Invalid exportPreview');
+      return;
+    }
+    fx.call();
+  }
+
 
   /***********
    *  UTILS  *
    ***********/
+  positionMenu = (clickCoordsX: number, clickCoordsY: number, contextMenu: string) => {
+
+    let menu: HTMLElement = this.el.shadowRoot.querySelector(contextMenu);
+    let menuWidth = menu.offsetWidth + 4;
+    let menuHeight = menu.offsetHeight + 4;
+
+    let windowWidth = window.innerWidth;
+    let windowHeight = window.innerHeight;
+    if (windowWidth - clickCoordsX < menuWidth) {
+      menu.style.left = windowWidth - menuWidth + "px";
+    } else {
+      menu.style.left = clickCoordsX + "px";
+    }
+
+    if (windowHeight - clickCoordsY < menuHeight) {
+      menu.style.top = windowHeight - menuHeight + "px";
+    } else {
+      menu.style.top = clickCoordsY + "px";
+    }
+  }
+  clickedInside = (e: Event, className: string): boolean => {
+    let el = e.srcElement || e.target;
+    let element: Element = (el as Element);
+
+    if (element.classList.contains(className)) {
+      return true;
+    } else {
+      while ((element = element.parentElement)) {
+        if (element.classList && element.classList.contains(className)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+  /**
+   * Get the position of the mouse event
+   * @returns the coordinate of the event
+   */
+  getPosition = (e: MouseEvent): { x: number, y: number } => {
+    var posx = 0;
+    var posy = 0;
+
+    // if (!e) e =  window.event;
+    if (!e) {
+      return { x: 0, y: 0 };
+    }
+
+    if (e.pageX || e.pageY) {
+      posx = e.pageX;
+      posy = e.pageY;
+    } else if (e.clientX || e.clientY) {
+      posx =
+        e.clientX +
+        document.body.scrollLeft +
+        document.documentElement.scrollLeft;
+      posy =
+        e.clientY +
+        document.body.scrollTop +
+        document.documentElement.scrollTop;
+    }
+    return {
+      x: posx,
+      y: posy,
+    };
+  }
+  /**
+   * Look up the element of the event
+   * @param e The pointer Event
+   * @returns The HTML Element 
+   */
+  lookupElement = (e: PointerEvent): Element => {
+    let container = this.el.shadowRoot.querySelector("[data-cy=text-container]");
+
+    if (this.isPointerEventInsideElement(e, container)) {
+
+      // Check whether the tag have been selected
+      let tagElements = container.querySelectorAll("svg");
+      for (let i = 0; i < tagElements.length; i++) {
+        if (this.isPointerEventInsideElement(e, tagElements[i])) {
+          return tagElements[i];
+        }
+      }
+
+      // Check whether the text have been selected
+      let pages = container.querySelectorAll(".page");
+      for (let i = 0; i < pages.length; i++) {
+        if (this.isPointerEventInsideElement(e, pages[i])) {
+          let paragraphs = pages[i].querySelectorAll(".page__col__text");
+          for (let j = 0; j < paragraphs.length; j++) {
+            if (this.isPointerEventInsideElement(e, paragraphs[j])) {
+              let sentences = paragraphs[j].querySelectorAll(".sentence");
+              for (let k = 0; k < sentences.length; k++) {
+                if (this.isPointerEventInsideElement(e, sentences[k])) {
+                  let words = sentences[k].querySelectorAll(".sentence__word");
+                  for (let l = 0; l < words.length; l++) {
+                    let word = words[l];
+                    if (this.isPointerEventInsideElement(e, word)) {
+                      return word;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  isPointerEventInsideElement = (event, element) => {
+    var pos = {
+      x:
+        (event.targetTouches ? event.targetTouches[0].pageX : event.pageX) -
+        scrollX,
+      y:
+        (event.targetTouches ? event.targetTouches[0].pageY : event.pageY) -
+        scrollY,
+    };
+    var rect = element.getBoundingClientRect();
+    return (
+      pos.x < rect.right &&
+      pos.x > rect.left &&
+      pos.y < rect.bottom &&
+      pos.y > rect.top
+    );
+  }
+
   /**
    * Transforms a given path to either use the default assets folder or rely on the absolute path given
    * @param path
@@ -155,19 +568,7 @@ export class ReadAlongComponent {
     }
   }
 
-  /**
-   * Given an audio file path and a parsed alignment object,
-   * build a Sprite object
-   * @param audio
-   * @param alignment
-   */
-  private buildSprite(audio: string, alignment: Alignment) {
-    return new Sprite({
-      src: [audio],
-      sprite: alignment,
-      rate: this.playback_rate
-    });
-  }
+
 
   /**
    * Add escape characters to query selector param
@@ -188,13 +589,86 @@ export class ReadAlongComponent {
     let keys = Object.keys(this.processed_alignment)
     // remove 'all' sprite as it's not a word.
     keys.pop()
-    for (let i = 1; i < keys.length; i++) {
-      if (s * 1000 > this.processed_alignment[keys[i]][0]
-        && this.processed_alignment[keys[i + 1]]
-        && s * 1000 < this.processed_alignment[keys[i + 1]][0]) {
-        return this.el.shadowRoot.querySelector(this.tagToQuery(keys[i]))
+    let t = s * 1000;
+    let halfDuration = this.wavesurfer.getDuration() * 500;
+    if (t < halfDuration) {
+      for (let i = 0; i < keys.length; i++) {
+        if (t > this.processed_alignment[keys[i]][0]
+          && this.processed_alignment[keys[i + 1]]
+          && t < this.processed_alignment[keys[i + 1]][0]) {
+          return this.el.shadowRoot.querySelector(this.tagToQuery(keys[i]))
+        }
+      }
+      if (t > this.processed_alignment[keys[keys.length - 1]][0]) {
+        return this.el.shadowRoot.querySelector(this.tagToQuery(keys[keys.length - 1]));
+      }
+    } else {
+      let i = keys.length - 1;
+      // for the last word
+      if (t > this.processed_alignment[keys[i]][0]) {
+        return this.el.shadowRoot.querySelector(this.tagToQuery(keys[i]));
+      }
+      for (i = keys.length - 2; i >= 0; i--) {
+        if (t > this.processed_alignment[keys[i]][0]
+          && this.processed_alignment[keys[i + 1]]
+          && t < this.processed_alignment[keys[i + 1]][0]) {
+          return this.el.shadowRoot.querySelector(this.tagToQuery(keys[i]));
+        }
       }
     }
+  }
+
+  getPreviousWordOrAnchor = (el: Element): Element => {
+    if (!el) {
+      return null;
+    }
+    let prev: Element = el.previousElementSibling;
+
+    while (prev && prev.tagName !== 'w' && prev.tagName !== 'anchor') {
+      let nodes = prev.querySelectorAll('w, anchor');
+      if (nodes.length > 0) {
+        return nodes.item(nodes.length - 1);
+      }
+      prev = prev.previousElementSibling;
+    }
+    if (prev) {
+      return prev;
+    }
+    return this.getPreviousWordOrAnchor(el.parentElement);
+  }
+
+  getNextWordOrAnchor = (el: Element): Element => {
+    if (!el) {
+      return null;
+    }
+    let next = el.nextElementSibling;
+    while (next && next.tagName !== 'w' && next.tagName !== 'anchor') {
+      // look for next's children
+      let nodes = next.getElementsByTagName('w, anchor');
+      if (nodes.length > 0) {
+        return nodes.item(0);
+      }
+      next = next.nextElementSibling;
+    }
+    if (next) {
+      return next;
+    }
+    return this.getNextWordOrAnchor(el.parentElement);
+  }
+
+  /**
+   * determine whether it is the last word of a paragraph
+   * @param wordId the word element id
+   * @returns true if the word is the last word of a paragraph
+   */
+  isLastWordOfParagraph = (wordId: string) => {
+    let lastWords = this.xmlDoc.querySelectorAll('s:last-child w:last-of-type');
+    for (let i = 0; i < lastWords.length; i++) {
+      if (lastWords.item(i).id === wordId) {
+        return true;
+      }
+    }
+    return false;
   }
 
 
@@ -208,10 +682,10 @@ export class ReadAlongComponent {
    *
    * @param ev
    */
-  changePlayback(ev: Event): void {
+  changePlayback = (ev: Event): void => {
     let inputEl = ev.currentTarget as HTMLInputElement
-    this.playback_rate =  parseInt(inputEl.value) / 100
-    this.audio_howl_sprites.sound.rate(this.playback_rate)
+    this.playback_rate = parseInt(inputEl.value) / 100
+    this.wavesurfer.setPlaybackRate(this.playback_rate);
   }
 
   /**
@@ -220,92 +694,28 @@ export class ReadAlongComponent {
    * @param s
    */
 
-  goBack(s: number): void {
-    this.autoScroll = false;
-    if (this.play_id) {
-      this.audio_howl_sprites.goBack(this.play_id, s)
-    }
-    setTimeout(() => this.autoScroll = true, 100)
-  }
-
-  /**
-   *  Highlight specific wording given by time.
-   *
-   * @param s
-   */
-  goToTime(time: number): void {
-    let query_el = this.returnWordClosestTo(time);
-    if (!query_el) return;
-
-    let tag = query_el.id;
-    let seek = this.processed_alignment[tag][0];
-    this.addHighlightingTo(query_el);
-    this.goTo(seek);
-
-    // Scroll horizontally (to different page) if needed
-    let current_page = ReadAlongComponent._getSentenceContainerOfWord(query_el).parentElement.id
-    if (current_page !== this.current_page) {
-      if (this.current_page !== undefined) {
-        this.scrollToPage(current_page)
-      }
-      this.current_page = current_page
-    }
-
-    // scroll vertically (through paragraph) if needed
-    if (this.inPageContentOverflow(query_el)) {
-      if (this.autoScroll) {
-        query_el.scrollIntoView(false);
-        this.scrollByHeight(query_el)
-      }
-    }
-    // scroll horizontal (through paragraph) if needed
-    if (this.inParagraphContentOverflow(query_el)) {
-      if (this.autoScroll) {
-        query_el.scrollIntoView(false);
-        this.scrollByWidth(query_el)
-      }
-    }
-  }
-
-  /**
-   * Get the Time for given element.
-   *
-   * @param ev
-   */
-  getTime(tag: number): number {
-    let seek = this.processed_alignment[tag][0]
-    return seek / 1000;
+  goBack = (s: number): void => {
+    this.wavesurfer.skipBackward(s);
   }
 
   /**
    * Go to seek
    *
-   * @param seek number
+   * @param seek number in millisecond
    *
    */
   goTo(seek: number): void {
     if (this.play_id === undefined) {
-      this.play();
-      this.pause();
+      this.playPause();
+      this.playPause();
     }
     this.autoScroll = false;
     seek = seek / 1000
-    this.audio_howl_sprites.goTo(this.play_id, seek)
+    // this.audio_howl_sprites.goTo(this.play_id, seek)
+    this.wavesurfer.setCurrentTime(seek);
     setTimeout(() => this.autoScroll = true, 100)
   }
 
-  /**
-   * Go to seek from id
-   *
-   * @param ev
-   */
-  goToSeekAtEl(ev: MouseEvent): string {
-    let el = ev.currentTarget as HTMLElement
-    let tag = el.id;
-    let seek = this.processed_alignment[tag][0]
-    this.goTo(seek)
-    return tag
-  }
 
   /**
    * Go to seek from progress bar
@@ -320,38 +730,33 @@ export class ReadAlongComponent {
     // get click point
     let click = ev.pageX - offset
     // get seek in milliseconds
-    let seek = ((click / width) * this.duration) * 1000
+    let seek = ((click / width) * this.wavesurfer.getDuration()) * 1000
+
     this.goTo(seek)
   }
 
-
   /**
-   * Pause audio.
+   * 
    */
-  pause(): void {
-    this.playing = false;
-    this.audio_howl_sprites.pause()
+  playPause = () => {
+    this.wavesurfer.playPause();
+    this.playing = this.wavesurfer.isPlaying();
   }
 
-
-  /**
-   * Play the current audio, or start a new play of all
-   * the audio
-   *
-   *
-   */
-  play() {
-    this.playing = true;
-    // If already playing once, continue playing
-    if (this.play_id !== undefined) {
-      this.play_id = this.audio_howl_sprites.play(this.play_id)
-    } else {
-      // else, start a new play
-      this.play_id = this.audio_howl_sprites.play('all')
+  playRegion = () => {
+    let region: Region;
+    region = Object.values(this.wavesurfer.regions.list)[0];
+    if (region) {
+      region.play();
+      this.playing = this.wavesurfer.isPlaying();
     }
-    // animate the progress bar
-    this.animateProgress()
+    else {
+      alert("There is no region selected");
+    }
+  }
 
+  deleteRegion = () => {
+    this.wavesurfer.regions.clear();
   }
 
   /**
@@ -359,27 +764,184 @@ export class ReadAlongComponent {
    *
    * @param ev
    */
-  playSprite(ev: MouseEvent): void {
-    let tag = this.goToSeekAtEl(ev)
-    if (!this.playing) {
-      this.audio_howl_sprites.play(tag)
-    }
+  playSprite = (ev: MouseEvent): void => {
+    let wordEl = ev.currentTarget as HTMLElement;
+    let [start, length]: number[] = this.processed_alignment[wordEl.id];
+    let s = start / 1000.0;
+    this.wavesurfer.setCurrentTime(s);
+    this.addHighlightingTo(wordEl);
+    this.playingWord = wordEl;
+    this.wavesurfer.play(s, s + length / 1000.0);
   }
 
 
   /**
    * Stop the sound and remove all active reading styling
    */
-  stop(): void {
-    this.playing = false;
-    this.audio_howl_sprites.stop()
-    this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'))
+  stop = () => {
+    if (this.wavesurfer.isPlaying()) {
+      this.playPause();
+    }
+    this.wavesurfer.stop();
+    this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'));
 
-    if (!this.autoScroll) {
-      this.autoScroll = true;
-      this.showGuide = false;
+    if (this.progressBarElement) {
+      this.progressBarElement.setAttribute('offset', '0%');
+      this.progressBarElement.style.width = '0%';
+    }
+  }
+
+  createWaveSurfer = () => {
+    let wavesurfer = WaveSurfer.create({
+      container: this.el.shadowRoot.querySelector("#wave"),
+      waveColor: "#A8DBA8",
+      progressColor: "#3B8686",
+      backgroundColor: this.theme == 'light' ? LIGHT_BACKGROUND : DARK_BACKGROUND,
+      backend: "MediaElement",
+      responsive: true,
+      plugins: [
+        RegionsPlugin.create({
+          regions: [],
+          dragSelection: {
+            slop: 5,
+          },
+          maxRegions: 1
+        }),
+        MarkersPlugin.create({
+          markers: [
+            // Need to create dummy marker in order to support draggable
+            {
+              id: "dummy",
+              time: -1,
+              label: "",
+              position: "top",
+              color: "#ffaa11",
+              draggable: true,
+            },
+          ],
+        }),
+
+      ],
+    });
+
+    try {
+      wavesurfer.load(this.audio);
+    } catch (e) {
+      console.log(e)
+      this.isLoaded = true;
+      this.assetsStatus.AUDIO = ERROR_LOADING;
     }
 
+    // Disable the region click event as we use Seek method to control the audio
+    wavesurfer.setDisabledEventEmissions("region-click");
+
+    // After an anchor is dragged
+    wavesurfer.on("marker-drop", (marker) => {
+      let all = this.allAnchors;
+      let maxTimeBefore: number = 0;
+      let minTimeAfter: number = this.wavesurfer.getDuration() + 999;
+      let originalTime = all[marker.id].time;
+      for (let id in all) {
+        if (id === marker.id) {
+          continue;
+        }
+        let t = all[id].time;
+        if (t < originalTime && t > maxTimeBefore) {
+          maxTimeBefore = t;
+        } else if (t > originalTime && t < minTimeAfter) {
+          minTimeAfter = t;
+        }
+      }
+      // if updated anchor is still in order, do nothing
+      if (maxTimeBefore < marker.time && marker.time < minTimeAfter) {
+        all[marker.id].element.setAttribute('time', `${marker.time.toFixed(2)}s`)
+        this.updateAnchorBackend();
+        return;
+      }
+      // updated anchor is out of order
+      // remove anchor from waveform
+      let n = this.wavesurfer.markers.markers
+        .findIndex(m => m.id === marker.id);
+      this.wavesurfer.markers.remove(n);
+      // add another anchor
+      let newAnchor = this.wavesurfer.markers.add({
+        time: originalTime,
+        label: '',
+        color: marker.color,
+        draggable: true
+      });
+      newAnchor.id = marker.id;
+
+      this.anchorAlertMessage = { show: true, message: 'Invalid anchor location' };
+
+    });
+
+
+
+    wavesurfer.on('ready', () => {
+      // create anchors
+      for (let id in this.allAnchors) {
+        let anchorInfo: AnchorInfo = this.allAnchors[id];
+        let anchor = this.wavesurfer.markers.add({
+          time: anchorInfo.time,
+          label: "",
+          color: anchorInfo.color,
+          draggable: true
+        });
+        anchor.id = id;
+      }
+
+      this.isLoaded = true;
+      this.assetsStatus.AUDIO = LOADED;
+      this.processed_alignment['all'] = [0, this.wavesurfer.getDuration() * 1000];
+    });
+
+    wavesurfer.on('error', (err) => {
+      console.log(err)
+      this.isLoaded = true;
+      this.assetsStatus.AUDIO = ERROR_LOADING;
+    })
+
+    wavesurfer.on('audioprocess', () => {
+      let el: HTMLElement = this.returnWordClosestTo(this.wavesurfer.getCurrentTime());
+      if (el && (!this.playingWord || this.playingWord !== el)) {
+        this.addHighlightingTo(el);
+        this.playingWord = el;
+
+      }
+      if (this.progressBarElement) {
+        let percent = `${this.wavesurfer.getCurrentTime() / this.wavesurfer.getDuration() * 100}%`;
+        this.progressBarElement.setAttribute('offset', percent);
+        this.progressBarElement.style.width = percent;
+      }
+
+
+    });
+    wavesurfer.on('seek', (progress) => {
+      let time = progress * this.wavesurfer.getDuration();
+      let el: HTMLElement = this.returnWordClosestTo(time);
+      if (el) {
+        this.addHighlightingTo(el);
+
+      }
+      if (!this.progressBarElement) {
+        this.animateProgress();
+      }
+      this.progressBarElement.setAttribute('offset', `${progress * 100}%`);
+      this.progressBarElement.style.width = `${progress * 100}%`;
+
+    });
+
+    wavesurfer.on('pause', () => {
+      this.playing = false;
+      this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'));
+    })
+    wavesurfer.on('finish', () => {
+      this.stop();
+      this.playing = false;
+    })
+
+    this.wavesurfer = wavesurfer;
   }
 
   /**
@@ -401,75 +963,99 @@ export class ReadAlongComponent {
    * @param el
    */
   addHighlightingTo(el: HTMLElement): void {
-    this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'))
+    this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'));
     el.classList.add('reading')
+
+    // Scroll horizontally (to different page) if needed
+    let current_page = ReadAlongComponent._getSentenceContainerOfWord(el).parentElement.id
+
+    if (current_page !== this.current_page) {
+      if (this.current_page !== undefined) {
+        this.scrollToPage(current_page)
+      }
+      this.current_page = current_page
+    }
+
+    //if the user has scrolled away from the from the current page bring them page
+    if (el.getBoundingClientRect().left < 0 || this.el.shadowRoot.querySelector("#" + current_page).getBoundingClientRect().left !== 0) {
+      this.scrollToPage(current_page)
+    }
+
+    // scroll vertically (through paragraph) if needed
+    if (this.inPageContentOverflow(el)) {
+      if (this.autoScroll) {
+        el.scrollIntoView(false);
+        this.scrollByHeight(el)
+      }
+    }// scroll horizontal (through paragraph) if needed
+    if (this.inParagraphContentOverflow(el)) {
+      if (this.autoScroll) {
+        el.scrollIntoView(false);
+        this.scrollByWidth(el)
+      }
+    }
   }
 
   /**
-   * Animate the progress through the overlay svg
-   */
+  * Animate the progress through the overlay svg
+  */
   animateProgressWithOverlay(): void {
     // select svg container
     let wave__container: any = this.el.shadowRoot.querySelector('#overlay__object')
     // use svg container to grab fill and trail
     let fill: HTMLElement = wave__container.contentDocument.querySelector('#progress-fill')
-    let trail = wave__container.contentDocument.querySelector('#progress-trail')
+    // let trail = wave__container.contentDocument.querySelector('#progress-trail')
     let base = wave__container.contentDocument.querySelector('#progress-base')
     fill.classList.add('stop-color--' + this.theme)
     base.classList.add('stop-color--' + this.theme)
 
-    // push them to array to be changed in step()
-    this.audio_howl_sprites.sounds.push(fill)
-    this.audio_howl_sprites.sounds.push(trail)
-    // When this sound is finished, remove the progress element.
-    this.audio_howl_sprites.sound.once('end', () => {
-      this.audio_howl_sprites.sounds.forEach(x => {
-        x.setAttribute("offset", '0%');
-      });
-      this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'))
-      this.playing = false;
-      // }
-    }, this.play_id);
+    // // push them to array to be changed in step()
+    // this.audio_howl_sprites.sounds.push(fill)
+    // this.audio_howl_sprites.sounds.push(trail)
+    // // When this sound is finished, remove the progress element.
+    // this.audio_howl_sprites.sound.once('end', () => {
+    //   this.audio_howl_sprites.sounds.forEach(x => {
+    //     x.setAttribute("offset", '0%');
+    //   });
+    //   this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'))
+    //   this.playing = false;
+    //   // }
+    // }, this.play_id);
   }
 
   /**
    * Animate the progress if no svg overlay is provided
    *
-   * @param play_id
    * @param tag
    */
-  animateProgressDefault(play_id: number, tag: string): void {
+  animateProgressDefault(tag: string): void {
+    if (this.progressBarElement) {
+      return;
+    }
     let elm = document.createElement('div');
     elm.className = 'progress theme--' + this.theme;
-    elm.id = play_id.toString();
+    // elm.id = play_id.toString();
+
     elm.dataset.sprite = tag;
     let query = this.tagToQuery(tag);
     this.el.shadowRoot.querySelector(query).appendChild(elm);
-    this.audio_howl_sprites.sounds.push(elm);
+    this.progressBarElement = elm;
 
-    // When this sound is finished, remove the progress element.
-    this.audio_howl_sprites.sound.once('end', () => {
-      // this.audio_howl_sprites = [];
-      this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'))
-      this.playing = false;
-      // }
-    }, this.play_id);
   }
 
   /**
    * Animate progress, either by default or with svg overlay.
    */
-  animateProgress(play_id = this.play_id): void {
+  animateProgress(): void {
     // Start animating progress
     if (this.svgOverlay) {
       // either with svg overlay
       this.animateProgressWithOverlay();
     } else {
       // or default progress bar
-      this.animateProgressDefault(play_id, 'all');
+      this.animateProgressDefault('all');
     }
   }
-
 
   /**
    * Change fill colour to match theme
@@ -497,11 +1083,13 @@ export class ReadAlongComponent {
   /**
    * Change theme
    */
-  changeTheme(): void {
+  changeTheme = (): void => {
     if (this.theme === 'light') {
       this.theme = 'dark'
+      this.wavesurfer.setBackgroundColor(DARK_BACKGROUND);
     } else {
       this.theme = 'light'
+      this.wavesurfer.setBackgroundColor(LIGHT_BACKGROUND);
     }
   }
 
@@ -570,7 +1158,7 @@ export class ReadAlongComponent {
     this.scrollTo(reading_el)
   }
 
-//for when you visually align content
+  //for when you visually align content
   inParagraphContentOverflow(element: HTMLElement): boolean {
     let para_el = ReadAlongComponent._getSentenceContainerOfWord(element);
     let para_rect = para_el.getBoundingClientRect()
@@ -673,7 +1261,7 @@ export class ReadAlongComponent {
 
   }
 
-//scrolling within the visually aligned paragraph
+  //scrolling within the visually aligned paragraph
   scrollByWidth(el: HTMLElement): void {
 
     let sent_container = ReadAlongComponent._getSentenceContainerOfWord(el) //get the direct parent sentence container
@@ -695,23 +1283,7 @@ export class ReadAlongComponent {
     });
   }
 
-  /****
-   * AUDIO HANDLING
-   *
-   */
-  audioFailedToLoad() {
 
-    this.isLoaded = true;
-    this.assetsStatus.AUDIO = ERROR_LOADING;
-
-  }
-
-  audioLoaded() {
-
-    this.isLoaded = true;
-    this.assetsStatus.AUDIO = LOADED;
-
-  }
 
   /*************
    * LIFECYCLE *
@@ -751,7 +1323,80 @@ export class ReadAlongComponent {
         this.language = "eng"
       }
     }
+    //process XML
+    let xmlText = getXML(this.text)
+    this.xmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
+    let tempXmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
+    this.workingXmlDoc = tempXmlDoc;
+    let wordsAnchors = tempXmlDoc.querySelectorAll('w,anchor');
 
+    this.palette = palette.slice();
+    this.allAnchors = {};
+    // find existing anchors
+
+    for (let i = 0; i < wordsAnchors.length; i++) {
+      let n = wordsAnchors.item(i);
+      if (n.tagName !== 'anchor') {
+        continue;
+      }
+      let anchor = tempXmlDoc.getElementById(n.id);
+      let timeStr = anchor.getAttribute('time');
+      let time = 0;
+      if (timeStr.endsWith('ms')) {
+        time = Number(timeStr.substring(0, timeStr.length - 2)) / 1000.0;
+      } else if (timeStr.endsWith('s')) {
+        time = Number(timeStr.substring(0, timeStr.length - 1));
+      }
+      let id = n.id;
+      this.allAnchors[id] = { id: id, color: this.palette.pop(), element: anchor, time };
+
+      if (anchor.parentElement && anchor.parentElement.tagName === 's') {
+        // anchor already under a sentence
+        continue;
+      }
+      if (anchor.nextElementSibling) {
+        // get next word
+        let word: Element = null;
+        for (let j = i + 1; j < wordsAnchors.length; j++) {
+          if (wordsAnchors[j].tagName === 'w') {
+            word = wordsAnchors[j];
+            break;
+          }
+        }
+        if (word) {
+          // insert anchor before this word
+          let w = tempXmlDoc.getElementById(word.id);
+          w.parentElement.insertBefore(anchor, w);
+          continue;
+        }
+      }
+      if (anchor.previousElementSibling) {
+        // get previous word
+        let word: Element = null;
+        for (let j = i - 1; j >= 0; j--) {
+          if (wordsAnchors[j].tagName === 'w') {
+            word = wordsAnchors[j];
+            break;
+          }
+        }
+        if (word) {
+          // insert anchor after this word
+          let w = tempXmlDoc.getElementById(word.id);
+          w.parentElement.appendChild(anchor);
+        }
+      }
+    }
+
+    this.parsed_text = parseTEIFromDoc(tempXmlDoc);
+
+    if (this.mode === 'ANCHOR') {
+      // update the original version
+      this.updateAnchorBackend();
+    }
+
+    this.assetsStatus.XML = this.parsed_text.length ? LOADED : ERROR_LOADING;
+    this.processed_alignment = parseSMIL(this.alignment);
+    this.assetsStatus.SMIL = Object.keys(this.processed_alignment).length ? LOADED : ERROR_LOADING;
   }
 
   /**
@@ -761,127 +1406,14 @@ export class ReadAlongComponent {
    */
   componentDidLoad() {
 
-
     this.processed_alignment = parseSMIL(this.alignment)
     this.assetsStatus.SMIL = Object.keys(this.processed_alignment).length ? LOADED : ERROR_LOADING
 
-    // load basic Howl
-    this.audio_howl_sprites = new Howl({
-      src: [this.audio],
-      preload: true,
-      onloaderror: this.audioFailedToLoad.bind(this),
-      onload: this.audioLoaded.bind(this)
-
-    })
-    // Once loaded, get duration and build Sprite
-    this.audio_howl_sprites.once('load', () => {
-
-      this.processed_alignment['all'] = [0, this.audio_howl_sprites.duration() * 1000];
-      this.duration = this.audio_howl_sprites.duration();
-      this.audio_howl_sprites = this.buildSprite(this.audio, this.processed_alignment);
-      // Once Sprites are built, subscribe to reading subject and update element class
-      // when new distinct values are emitted
-      this.reading$ = this.audio_howl_sprites._reading$.pipe(
-        distinctUntilChanged()
-      ).subscribe(el_tag => {
-        // Only highlight when playing
-        if (this.playing) {
-          // Turn tag to query
-          let query = this.tagToQuery(el_tag);
-          // select the element with that tag
-          let query_el: HTMLElement = this.el.shadowRoot.querySelector(query);
-          // Remove all elements with reading class
-          this.el.shadowRoot.querySelectorAll(".reading").forEach(x => x.classList.remove('reading'))
-          // Add reading to the selected el
-          query_el.classList.add('reading')
-
-          // Scroll horizontally (to different page) if needed
-          let current_page = ReadAlongComponent._getSentenceContainerOfWord(query_el).parentElement.id
-
-          if (current_page !== this.current_page) {
-            if (this.current_page !== undefined) {
-              this.scrollToPage(current_page)
-            }
-            this.current_page = current_page
-          }
-
-          //if the user has scrolled away from the from the current page bring them page
-          if (query_el.getBoundingClientRect().left < 0 || this.el.shadowRoot.querySelector("#" + current_page).getBoundingClientRect().left !== 0) {
-            this.scrollToPage(current_page)
-          }
-
-          // scroll vertically (through paragraph) if needed
-          if (this.inPageContentOverflow(query_el)) {
-            if (this.autoScroll) {
-              query_el.scrollIntoView(false);
-              this.scrollByHeight(query_el)
-            }
-          }// scroll horizontal (through paragraph) if needed
-          if (this.inParagraphContentOverflow(query_el)) {
-            if (this.autoScroll) {
-              query_el.scrollIntoView(false);
-              this.scrollByWidth(query_el)
-            }
-          }
-        }
-      })
-      this.isLoaded = true;
-      this.assetsStatus.AUDIO = LOADED;
-    })
-    // Parse the text to be displayed
-    this.parsed_text = parseTEI(this.text)
-
-    this.assetsStatus.XML = this.parsed_text.length ? LOADED : ERROR_LOADING
-
-    // Assign to Global Object for external access
-    globalThis.readAlong = this;
+    this.createWaveSurfer();
 
   }
 
-  /**********
-   *  LANG  *
-   **********/
 
-  /**
-   * Any text used in the Web Component should be at least bilingual in English and French.
-   * To add a new term, add a new key to the translations object. Then add 'eng' and 'fr' keys
-   * and give the translations as values.
-   *
-   * @param word
-   * @param lang
-   */
-  returnTranslation(word: string, lang?: InterfaceLanguage): string {
-    if (lang === undefined) lang = this.language;
-    let translations: { [message: string]: Translation } = {
-      "speed": {
-        "eng": "Playback Speed",
-        "fra": "Vitesse de Lecture"
-      },
-      "re-align": {
-        "eng": "Re-align with audio",
-        "fra": "Réaligner avec l'audio"
-      },
-      "audio-error": {
-        "eng": "Error: The audio file could not be loaded",
-        "fra": "Erreur: le fichier audio n'a pas pu être chargé"
-      },
-      "text-error": {
-        "eng": "Error: The text file could not be loaded",
-        "fra": "Erreur: le fichier texte n'a pas pu être chargé"
-      },
-      "alignment-error": {
-        "eng": "Error: The alignment file could not be loaded",
-        "fra": "Erreur: le fichier alignement n'a pas pu être chargé"
-      },
-      "loading": {
-        "eng": "Loading...",
-        "fra": "Chargement en cours"
-      }
-    }
-    if (translations[word])
-      return translations[word][lang]
-    return word;
-  }
 
   /**********
    * RENDER *
@@ -892,9 +1424,9 @@ export class ReadAlongComponent {
    */
   Guide = (): Element =>
     <button class={'scroll-guide__container ripple ui-button theme--' + this.theme}
-            onClick={() => this.hideGuideAndScroll()}>
+      onClick={() => this.hideGuideAndScroll()}>
       <span class={'scroll-guide__text theme--' + this.theme}>
-        {this.returnTranslation('re-align', this.language)}
+        {returnTranslation('re-align', this.language)}
       </span>
     </button>
 
@@ -902,7 +1434,7 @@ export class ReadAlongComponent {
    * Render svg overlay
    */
   Overlay = (): Element => <object onClick={(e) => this.goToSeekFromProgress(e)} id='overlay__object'
-                                   type='image/svg+xml' data={this.svgOverlay}/>
+    type='image/svg+xml' data={this.svgOverlay} />
 
   /**
    * Render image at path 'url' in assets folder.
@@ -913,7 +1445,7 @@ export class ReadAlongComponent {
 
 
     return (<div class={"image__container page__col__image theme--" + this.theme}>
-      <img alt={"image"} class="image" src={this.urlTransform(props.url)}/>
+      <img alt={"image"} class="image" src={this.urlTransform(props.url)} />
     </div>)
   }
 
@@ -948,17 +1480,17 @@ export class ReadAlongComponent {
       id={props.pageData['id']}>
       { /* Display the PageCount only if there's more than 1 page */
         this.parsed_text.length > 1 ? <this.PageCount pgCount={this.parsed_text.length}
-                                                      currentPage={this.parsed_text.indexOf(props.pageData) + 1}/> : null
+          currentPage={this.parsed_text.indexOf(props.pageData) + 1} /> : null
       }
       { /* Display an Img if it exists on the page */
-        props.pageData.img ? <this.Img url={props.pageData.img}/> : null
+        props.pageData.img ? <this.Img url={props.pageData.img} /> : null
       }
       <div class={"page__col__text paragraph__container theme--" + this.theme}>
         { /* Here are the Paragraph children */
           props.pageData.paragraphs.map((paragraph: Element) => {
 
-              return <this.Paragraph sentences={Array.from(paragraph.childNodes)} attributes={paragraph.attributes}/>
-            }
+            return <this.Paragraph sentences={Array.from(paragraph.childNodes)} attributes={paragraph.attributes} />
+          }
           )
         }
       </div>
@@ -978,7 +1510,7 @@ export class ReadAlongComponent {
         /* Here are the Sentence children */
         props.sentences.map((sentence: Element) =>
           (sentence.childNodes.length > 0) &&
-          <this.Sentence words={Array.from(sentence.childNodes)} attributes={sentence.attributes}/>)
+          <this.Sentence words={Array.from(sentence.childNodes)} attributes={sentence.attributes} />)
       }
     </div>
 
@@ -1004,22 +1536,28 @@ export class ReadAlongComponent {
     }
 
     return <div {...nodeProps}
-                class={'sentence' + " " + (props.attributes["class"] ? props.attributes["class"].value : "")}>
+      class={'sentence' + " " + (props.attributes["class"] ? props.attributes["class"].value : "")}>
       {
         /* Here are the Word and NonWordText children */
         props.words.map((child: Element, c) => {
 
           if (child.nodeName === '#text') {
             return <this.NonWordText text={child.textContent} attributes={child.attributes}
-                                     id={(props.attributes["id"] ? props.attributes["id"].value : "P") + 'text' + c}/>
+              id={(props.attributes["id"] ? props.attributes["id"].value : "P") + 'text' + c} />
           } else if (child.nodeName === 'w') {
-            return <this.Word text={child.textContent} id={child['id']} attributes={child.attributes}/>
+            return <this.Word text={child.textContent} id={child['id']} attributes={child.attributes} />
+          } else if (child.nodeName === 'anchor') {
+            if (this.mode !== 'ANCHOR') {
+              return null;
+            }
+            let color: string = this.allAnchors[child['id']].color;
+            return <this.Anchor id={child['id']} color={color} />
           } else if (child) {
             let cnodeProps = {};
             if (child.attributes['xml:lang']) cnodeProps['lang'] = props.attributes['xml:lang'].value
             if (child.attributes['lang']) cnodeProps['lang'] = props.attributes['lang'].value
             return <span {...cnodeProps} class={'sentence__text theme--' + this.theme + (' ' + child.className)}
-                         id={child.id ? child.id : 'text_' + c}>{child.textContent}</span>
+              id={child.id ? child.id : 'text_' + c}>{child.textContent}</span>
           }
         })
       }
@@ -1043,6 +1581,20 @@ export class ReadAlongComponent {
     return <span {...nodeProps} class={'sentence__text theme--' + this.theme} id={props.id}>{props.text}</span>
   }
 
+  /**
+    * Anchor element
+    * 
+    * @param props id - the id of the anchor, color: color of the anchor
+    * @returns an svg representing an anchor
+    */
+  Anchor = (props: { id: string, color: string }): Element => {
+    return <svg viewBox='0 0 40 80' id={`${props.id}-svg`} style={{
+      width: MARKER_WIDTH, height: MARKER_HEIGHT, minWidth: MARKER_WIDTH, marginRight: '5px',
+      zIndex: '4', cursor: 'pointer'
+    }}>
+      <polygon id={`${props.id}-polygon`} stroke='#979797' fill={props.color} points='20 0 40 30 40 80 0 80 0 30'>
+      </polygon></svg>
+  }
 
   /**
    * A Word text element
@@ -1057,72 +1609,100 @@ export class ReadAlongComponent {
     if (props.attributes && props.attributes['lang']) nodeProps['lang'] = props.attributes['lang'].value
 
     return <span {...nodeProps}
-                 class={'sentence__word theme--' + this.theme + " " + (props && props.attributes["class"] ? props.attributes["class"].value : "")}
-                 id={props.id} onClick={(ev) => this.playSprite(ev)}>{props.text}</span>
+      class={'sentence__word theme--' + this.theme + " " + (props && props.attributes["class"] ? props.attributes["class"].value : "")}
+      id={props.id} onClick={this.playSprite}>{props.text}</span>
   }
   /**
    * Render controls for ReadAlong
    */
 
   PlayControl = (): Element => <button data-cy="play-button" disabled={!this.isLoaded} aria-label="Play"
-                                       onClick={() => {
-                                         this.playing ? this.pause() : this.play()
-                                       }}
-                                       class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
-    <i class="material-icons">{this.playing ? 'pause' : 'play_arrow'}</i>
+    onClick={this.playPause}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    <i class="material-icons">{this.wavesurfer.isPlaying() ? 'pause' : 'play_arrow'}</i>
+    <span class="tooltiptext">{this.wavesurfer.isPlaying() ? 'Pause' : 'Play'}</span>
   </button>
 
   ReplayControl = (): Element => <button data-cy="replay-button" disabled={!this.isLoaded} aria-label="Rewind"
-                                         onClick={() => this.goBack(5)}
-                                         class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    onClick={() => this.goBack(5)}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons">replay_5</i>
+    <span class="tooltiptext">Rewind</span>
   </button>
 
   StopControl = (): Element => <button data-cy="stop-button" disabled={!this.isLoaded} aria-label="Stop"
-                                       onClick={() => this.stop()}
-                                       class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    onClick={this.stop}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons">stop</i>
+    <span class="tooltiptext">Stop</span>
   </button>
 
+  ExportPreviewControl = (): Element => <button data-cy="export-original-button" aria-label="Export Preview"
+    onClick={this.exportPreview}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    <i class="material-icons-outlined">file_download</i>
+    <span class="tooltiptext">Export the readalong preview version</span>
+  </button>
+
+  PlayReginControl = (): Element => <button data-cy="export-original-button" aria-label="Export Preview"
+    onClick={this.playRegion}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    <i class="material-icons">play_circle</i>
+    <span class="tooltiptext">Play selected region</span>
+  </button>
+  DeleteReginControl = (): Element => <button data-cy="export-original-button" aria-label="Export Preview"
+    onClick={this.deleteRegion}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    <i class="material-icons-outlined">
+      highlight_off
+    </i>
+    <span class="tooltiptext">Delete region</span>
+  </button>
   PlaybackSpeedControl = (): Element => <div>
     <h5
-      class={"control-panel__buttons__header color--" + this.theme}>{this.returnTranslation('speed', this.language)}</h5>
+      class={"control-panel__buttons__header color--" + this.theme}>{returnTranslation('speed', this.language)}</h5>
     <input type="range" min="75" max="125" value={this.playback_rate * 100} class="slider control-panel__control"
-           id="myRange" onInput={(v) => this.changePlayback(v)}/>
+      id="myRange" onInput={(v) => this.changePlayback(v)} />
   </div>
 
-  StyleControl = (): Element => <button aria-label="Change theme" onClick={() => this.changeTheme()}
-                                        class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+  StyleControl = (): Element => <button aria-label="Change theme" onClick={this.changeTheme}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons-outlined">style</i>
+    <span class="tooltiptext right">Change theme</span>
   </button>
 
   FullScreenControl = (): Element => <button aria-label="Full screen mode" onClick={() => this.toggleFullscreen()}
-                                             class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons" aria-label="Full screen mode">{this.fullscreen ? 'fullscreen_exit' : 'fullscreen'}</i>
+    <span class="tooltiptext right">Toogle screen mode</span>
   </button>
 
   TextTranslationDisplayControl = (): Element => <button data-cy="translation-toggle" aria-label="Toggle Translation"
-                                                         onClick={() => this.toggleTextTranslation()}
-                                                         class={"control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
+    onClick={() => this.toggleTextTranslation()}
+    class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons-outlined">subtitles</i>
+    <span class="tooltiptext right">Toggle translation</span>
   </button>
 
   ControlPanel = (): Element => <div data-cy="control-panel"
-                                     class={"control-panel theme--" + this.theme + " background--" + this.theme}>
+    class={"control-panel theme--" + this.theme + " background--" + this.theme}>
     <div class="control-panel__buttons--left">
-      <this.PlayControl/>
-      <this.ReplayControl/>
-      <this.StopControl/>
+      <this.PlayControl />
+      <this.ReplayControl />
+      <this.StopControl />
+      {this.mode === "ANCHOR" && <this.PlayReginControl />}
+      {this.mode === "ANCHOR" && <this.DeleteReginControl />}
+      {this.mode === "PREVIEW" && <this.ExportPreviewControl />}
     </div>
 
     <div class="control-panel__buttons--center">
-      <this.PlaybackSpeedControl/>
+      <this.PlaybackSpeedControl />
     </div>
 
     <div class="control-panel__buttons--right">
-      {this.hasTextTranslations && <this.TextTranslationDisplayControl/>}
-      <this.StyleControl/>
-      <this.FullScreenControl/>
+      {this.hasTextTranslations && <this.TextTranslationDisplayControl />}
+      <this.StyleControl />
+      <this.FullScreenControl />
     </div>
   </div>
 
@@ -1134,56 +1714,104 @@ export class ReadAlongComponent {
     return (
       <div id='read-along-container' class='read-along-container'>
         <h1 class="slot__header">
-          <slot name="read-along-header"/>
+          <slot name="read-along-header" />
         </h1>
         <h3 class="slot__subheader">
-          <slot name="read-along-subheader"/>
+          <slot name="read-along-subheader" />
         </h3>
+        <div id='wave' hidden={this.mode !== 'ANCHOR'}></div>
         {
           this.assetsStatus.AUDIO &&
           <p data-cy="audio-error"
-             class={"alert status-" + this.assetsStatus.AUDIO + (this.assetsStatus.AUDIO == LOADED ? ' fade' : '')}>
+            class={"alert status-" + this.assetsStatus.AUDIO + (this.assetsStatus.AUDIO == LOADED ? ' fade' : '')}>
             <span
               class="material-icons-outlined"> {this.assetsStatus.AUDIO == ERROR_LOADING ? 'error' : (this.assetsStatus.AUDIO > 0 ? 'done' : 'pending_actions')}</span>
-            <span>{this.assetsStatus.AUDIO == ERROR_LOADING ? this.returnTranslation('audio-error', this.language) : (this.assetsStatus.SMIL > 0 ? 'AUDIO' : this.returnTranslation('loading', this.language))}</span>
+            <span>{this.assetsStatus.AUDIO == ERROR_LOADING ? returnTranslation('audio-error', this.language) : (this.assetsStatus.SMIL > 0 ? 'AUDIO' : returnTranslation('loading', this.language))}</span>
           </p>
         }
 
         {
           this.assetsStatus.XML && <p data-cy="text-error"
-                                      class={"alert status-" + this.assetsStatus.XML + (this.assetsStatus.XML == LOADED ? ' fade' : '')}>
+            class={"alert status-" + this.assetsStatus.XML + (this.assetsStatus.XML == LOADED ? ' fade' : '')}>
             <span
               class="material-icons-outlined"> {this.assetsStatus.XML == ERROR_LOADING ? 'error' : (this.assetsStatus.XML > 0 ? 'done' : 'pending_actions')}</span>
-            <span>{this.assetsStatus.XML == ERROR_LOADING ? this.returnTranslation('text-error', this.language) : (this.assetsStatus.SMIL > 0 ? 'XML' : this.returnTranslation('loading', this.language))}</span>
+            <span>{this.assetsStatus.XML == ERROR_LOADING ? returnTranslation('text-error', this.language) : (this.assetsStatus.SMIL > 0 ? 'XML' : returnTranslation('loading', this.language))}</span>
           </p>
         }
 
         {
           this.assetsStatus.SMIL && <p data-cy="alignment-error"
-                                       class={"alert status-" + this.assetsStatus.SMIL + (this.assetsStatus.SMIL == LOADED ? ' fade' : '')}>
+            class={"alert status-" + this.assetsStatus.SMIL + (this.assetsStatus.SMIL == LOADED ? ' fade' : '')}>
             <span
               class="material-icons-outlined"> {this.assetsStatus.SMIL == ERROR_LOADING ? 'error' : (this.assetsStatus.SMIL > 0 ? 'done' : 'pending_actions')}</span>
-            <span>{this.assetsStatus.SMIL == ERROR_LOADING ? this.returnTranslation('alignment-error', this.language) : (this.assetsStatus.SMIL > 0 ? 'SMIL' : this.returnTranslation('loading', this.language))}</span>
+            <span>{this.assetsStatus.SMIL == ERROR_LOADING ? returnTranslation('alignment-error', this.language) : (this.assetsStatus.SMIL > 0 ? 'SMIL' : returnTranslation('loading', this.language))}</span>
+          </p>
+        }
+        {
+          this.anchorAlertMessage && this.anchorAlertMessage.show && <p data-cy="anchor-error"
+            class={"alert status-2"} >
+
+            <span
+              class="material-icons-outlined"> error </span>
+            <span>{this.anchorAlertMessage.message}</span>
+            <button style={{ border: 'none', padding: '0px', float: 'right' }} class='alert status-2' onClick={this.closeAnchorAlert}>
+              <span class="material-icons">
+                cancel
+              </span>
+            </button >
           </p>
         }
         <div data-cy="text-container" class={"pages__container theme--" + this.theme + " " + this.pageScrolling}>
 
-          {this.showGuide ? <this.Guide/> : null}
+          {this.showGuide ? <this.Guide /> : null}
           {this.assetsStatus.XML == LOADED && this.parsed_text.map((page) =>
             <this.Page pageData={page}>
             </this.Page>
           )}
-          {this.isLoaded == false && <div class="loader"/>}
+          {this.isLoaded == false && <div class="loader" />}
 
         </div>
         {this.assetsStatus.SMIL == LOADED &&
-        <div onClick={(e) => this.goToSeekFromProgress(e)} id='all' data-cy="progress-bar"
-             class={"overlay__container theme--" + this.theme + " background--" + this.theme}>
-          {this.svgOverlay ? <this.Overlay/> : null}
-        </div>}
-        {this.assetsStatus.AUDIO == LOADED && <this.ControlPanel/>}
+          <div onClick={(e) => this.goToSeekFromProgress(e)} id='all' data-cy="progress-bar"
+            class={"overlay__container theme--" + this.theme + " background--" + this.theme}>
+            {this.svgOverlay ? <this.Overlay /> : null}
+          </div>}
+        {this.assetsStatus.AUDIO == LOADED && <this.ControlPanel />}
 
-        {this.cssUrl && this.cssUrl.match(".css") != null && <link href={this.cssUrl} rel="stylesheet"/>}
+
+        {this.cssUrl && this.cssUrl.match(".css") != null && <link href={this.cssUrl} rel="stylesheet" />}
+
+        <div>
+          <nav id="context-menu" class="context-menu" data-id=""  >
+            <ul class="context-menu__items">
+              <li>
+                <div class="context-menu__item" id='context-menu-div'>
+                  <a href="#" class="context-menu__link" data-action="add-anchor"
+                    onClick={this.insertAnchorBefore}>
+                    Insert Anchor Before
+                  </a>
+                </div>
+              </li>
+              <li>
+                <div class="context-menu__item" id='context-menu-div'>
+                  <a href="#" class="context-menu__link" data-action="add-anchor-after"
+                    onClick={this.insertAnchorAfter}>
+                    Insert Anchor After
+                  </a>
+                </div>
+              </li>
+              <li>
+                <div class="context-menu__item" id='context-menu-div'>
+                  <a href="#" class="context-menu__link" data-action="del-anchor"
+                    onClick={this.deleteAnchor}>
+                    Remove
+                  </a>
+                </div>
+              </li>
+            </ul>
+          </nav>
+
+        </div>
       </div>
 
     )
