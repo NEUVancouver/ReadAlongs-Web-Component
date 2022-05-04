@@ -40,6 +40,10 @@ export const returnTranslation = (word: string, lang?: InterfaceLanguage, defaul
         "loading": {
             "eng": "Loading...",
             "fra": "Chargement en cours"
+        },
+        "zoom-waveform": {
+            "eng": "Zoom Waveform",
+            "fra": "agrandir la forme d'onde"
         }
     }
     if (translations[word])

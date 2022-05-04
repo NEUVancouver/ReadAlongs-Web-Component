@@ -421,6 +421,14 @@ export class ReadAlongComponent {
     fx.call();
   }
 
+  /**
+   * Add Zoom Event
+   */
+  zoomWaveform = (ev: Event): void => {
+    let inputEl = ev.currentTarget as HTMLInputElement
+    let sliderValue = parseInt(inputEl.value)
+    this.wavesurfer.zoom(sliderValue);
+  };
 
   /***********
    *  UTILS  *
@@ -1664,7 +1672,12 @@ export class ReadAlongComponent {
     <input type="range" min="75" max="125" value={this.playback_rate * 100} class="slider control-panel__control"
       id="myRange" onInput={(v) => this.changePlayback(v)} />
   </div>
-
+  WaveFormControl = (): Element => <div>
+        <h5
+      class={"control-panel__buttons__header color--" + this.theme}>{returnTranslation('zoom-waveform', this.language)}</h5>
+    <input type="range" min="1" max="100" value="0" class="slider control-panel__control"
+      id="myRange" onInput={(v) => this.zoomWaveform(v)} />
+  </div>
   StyleControl = (): Element => <button aria-label="Change theme" onClick={this.changeTheme}
     class={"tooltip control-panel__control ripple theme--" + this.theme + " background--" + this.theme}>
     <i class="material-icons-outlined">style</i>
@@ -1698,6 +1711,11 @@ export class ReadAlongComponent {
     <div class="control-panel__buttons--center">
       <this.PlaybackSpeedControl />
     </div>
+
+    {(this.mode !== 'ANCHOR') ? <div/> : 
+    <div class="control-panel__buttons--center">
+      <this.WaveFormControl />
+    </div>}
 
     <div class="control-panel__buttons--right">
       {this.hasTextTranslations && <this.TextTranslationDisplayControl />}
